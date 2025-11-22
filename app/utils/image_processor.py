@@ -375,10 +375,15 @@ class ImageProcessor:
             # 2. Aplicar tema se fornecido
             if theme_url:
                 try:
+                    logger.info(f"📥 Baixando tema de: {theme_url}")
                     theme_image = self._download_image(theme_url)
+                    logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
                     base_image = self._apply_theme(base_image, theme_image)
+                    logger.info(f"✅ Tema aplicado com sucesso")
                 except Exception as e:
-                    logger.warning(f"Falha ao aplicar tema, continuando sem ele: {e}")
+                    logger.warning(f"⚠️ Falha ao aplicar tema, continuando sem ele: {e}")
+            else:
+                logger.info("ℹ️ Nenhum tema fornecido, usando apenas imagem base")
             
             # 3. Normalizar dados dos produtos
             normalized_products = []
