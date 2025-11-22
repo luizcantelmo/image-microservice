@@ -26,7 +26,7 @@
 ### Opção 1: Script Automático (Recomendado)
 
 ```powershell
-cd d:\Repositorio\image-microservice
+P
 .\upload-to-github.ps1
 ```
 

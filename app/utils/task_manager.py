@@ -1,8 +1,9 @@
 """
 Gerenciador de tarefas de processamento
-Suporta armazenamento em memória ou Redis
+Suporta armazenamento em memória, arquivo JSON ou Redis
 """
 import json
+import os
 from datetime import datetime
 from app import config
 from app.utils.logger import get_logger
@@ -12,12 +13,38 @@ logger = get_logger(__name__)
 # Dicionário em memória (fallback se Redis não estiver disponível)
 _tasks_in_memory = {}
 
+# Arquivo para persistência
+TASKS_FILE = os.path.join(os.path.dirname(__file__), '../../tasks_db.json')
+
+def _load_tasks_from_file():
+    """Carrega tarefas do arquivo JSON"""
+    try:
+        if os.path.exists(TASKS_FILE):
+            with open(TASKS_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.warning(f"Erro ao carregar tarefas do arquivo: {e}")
+    return {}
+
+def _save_tasks_to_file(tasks):
+    """Salva tarefas em arquivo JSON"""
+    try:
+        with open(TASKS_FILE, 'w') as f:
+            json.dump(tasks, f)
+    except Exception as e:
+        logger.error(f"Erro ao salvar tarefas no arquivo: {e}")
+
 class TaskManager:
-    """Gerenciador de tarefas com suporte a Redis e fallback para memória"""
+    """Gerenciador de tarefas com suporte a Redis, arquivo e memória"""
     
     def __init__(self):
         self.redis_client = None
         self.use_redis = False
+        self.use_file = True
+        
+        # Carregar tarefas do arquivo na inicialização
+        global _tasks_in_memory
+        _tasks_in_memory = _load_tasks_from_file()
         
         if config.USE_REDIS:
             try:
@@ -32,9 +59,10 @@ class TaskManager:
                 # Testa a conexão
                 self.redis_client.ping()
                 self.use_redis = True
+                self.use_file = False
                 logger.info("Conectado ao Redis com sucesso")
             except Exception as e:
-                logger.warning(f"Falha ao conectar ao Redis: {e}. Usando memória como fallback.")
+                logger.warning(f"Falha ao conectar ao Redis: {e}. Usando arquivo/memória como fallback.")
                 self.use_redis = False
     
     def get_task_status(self, task_id):
@@ -71,7 +99,10 @@ class TaskManager:
                     json.dumps(data)
                 )
             else:
+                global _tasks_in_memory
                 _tasks_in_memory[task_id] = data
+                # Salvar em arquivo para persistência
+                _save_tasks_to_file(_tasks_in_memory)
             
             logger.info(f"Status da tarefa {task_id} atualizado para: {status}")
         except Exception as e:
@@ -83,8 +114,11 @@ class TaskManager:
             if self.use_redis:
                 self.redis_client.delete(f"task:{task_id}")
             else:
+                global _tasks_in_memory
                 if task_id in _tasks_in_memory:
                     del _tasks_in_memory[task_id]
+                    # Salvar em arquivo
+                    _save_tasks_to_file(_tasks_in_memory)
             
             logger.info(f"Status da tarefa {task_id} deletado")
         except Exception as e:
