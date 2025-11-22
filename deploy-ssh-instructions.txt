@@ -1,0 +1,152 @@
+# ============================================================================
+# INSTRUÇÕES DE DEPLOYMENT - SSH HOSTINGER VPS
+# ============================================================================
+
+## INFORMAÇÕES
+- IP: 212.85.13.64
+- DNS: srv819060.hstgr.cloud
+- Usuário: (use seu SSH user da Hostinger)
+- Porta SSH: 22 (ou a que foi configurada)
+
+## PASSO 1: Conectar ao VPS via SSH
+
+ssh seu_usuario@212.85.13.64
+(ou: ssh seu_usuario@srv819060.hstgr.cloud)
+
+## PASSO 2: Criar diretório do app
+
+mkdir -p /home/seu_usuario/photo-monitor-api
+cd /home/seu_usuario/photo-monitor-api
+
+## PASSO 3: Clonar repositório (escolha uma opção)
+
+### OPÇÃO A: GitHub (recomendado)
+git clone https://github.com/SEU_USUARIO/image-microservice.git .
+
+### OPÇÃO B: Sem Git (cópia direta)
+# Copie os arquivos via SFTP ou tar
+
+## PASSO 4: Instalar Python e dependências
+
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv
+
+## PASSO 5: Criar Virtual Environment
+
+python3 -m venv venv
+source venv/bin/activate
+
+## PASSO 6: Instalar dependências Python
+
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install gunicorn
+
+## PASSO 7: Testar a aplicação localmente
+
+python run.py
+
+# Deve mostrar: Running on http://127.0.0.1:5001
+
+## PASSO 8: Configurar PM2 para rodar em background
+
+sudo npm install -g pm2
+pm2 start "gunicorn -w 4 -b 0.0.0.0:5001 wsgi:app" --name "photo-monitor-api"
+pm2 startup
+pm2 save
+
+# Verificar status:
+pm2 status
+
+## PASSO 9: Configurar Nginx como Reverse Proxy
+
+sudo apt install -y nginx
+
+# Criar arquivo de configuração:
+sudo nano /etc/nginx/sites-available/photo-monitor
+
+# Colar conteúdo:
+server {
+    listen 80;
+    server_name 212.85.13.64 srv819060.hstgr.cloud seu-dominio.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_set_header Host \System.Management.Automation.Internal.Host.InternalHost;
+        proxy_set_header X-Real-IP \;
+        proxy_set_header X-Forwarded-For \;
+        proxy_set_header X-Forwarded-Proto \;
+    }
+}
+
+# Ativar site:
+sudo ln -s /etc/nginx/sites-available/photo-monitor /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+## PASSO 10: Configurar SSL com Let's Encrypt
+
+sudo apt install -y certbot python3-certbot-nginx
+
+sudo certbot --nginx -d seu-dominio.com
+
+# Renovação automática:
+sudo systemctl enable certbot.timer
+
+## PASSO 11: Configurar Variáveis de Ambiente
+
+# Editar arquivo .env
+nano .env
+
+# Adicionar:
+DEBUG=False
+ENVIRONMENT=production
+FLASK_PORT=5001
+FLASK_HOST=0.0.0.0
+ALLOW_CORS=True
+CORS_ORIGINS=*
+
+GOOGLE_REFRESH_TOKEN=seu_token_aqui
+GOOGLE_CLIENT_ID=seu_client_id_aqui
+GOOGLE_CLIENT_SECRET=seu_secret_aqui
+TINY_API_TOKEN=seu_token_aqui
+
+SUPABASE_URL=https://qvoctlfnwdesbnjhgiyq.supabase.co
+SUPABASE_KEY=seu_service_role_key_aqui
+
+# Salvar: Ctrl+O, Enter, Ctrl+X
+
+## PASSO 12: Reiniciar Aplicação
+
+pm2 restart photo-monitor-api
+
+# Ver logs:
+pm2 logs photo-monitor-api
+
+## PRONTO! 🎉
+
+Sua aplicação está rodando em:
+- http://212.85.13.64:5001
+- http://srv819060.hstgr.cloud:5001
+- https://seu-dominio.com (se configurou SSL)
+
+## COMANDOS ÚTEIS
+
+# Ver status
+pm2 status
+
+# Logs
+pm2 logs photo-monitor-api
+
+# Reiniciar
+pm2 restart photo-monitor-api
+
+# Parar
+pm2 stop photo-monitor-api
+
+# Deletar
+pm2 delete photo-monitor-api
+
+# Monitorar
+pm2 monit
+
