@@ -73,8 +73,15 @@ class TaskManager:
                 if data:
                     return json.loads(data)
             else:
+                # Sempre recarregar do arquivo para garantir que temos dados atualizados
+                global _tasks_in_memory
+                _tasks_in_memory = _load_tasks_from_file()
+                
                 if task_id in _tasks_in_memory:
+                    logger.info(f"✅ Tarefa encontrada no arquivo: {task_id}")
                     return _tasks_in_memory[task_id]
+                else:
+                    logger.warning(f"❌ Tarefa NÃO encontrada: {task_id}")
         except Exception as e:
             logger.error(f"Erro ao obter status da tarefa {task_id}: {e}")
         
