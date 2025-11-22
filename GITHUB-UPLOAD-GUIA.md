@@ -85,7 +85,7 @@ Depois do upload, você pode:
 
 **Opção A:** Clonar no VPS
 ```bash
-git clone https://github.com/SEU_USUARIO/image-microservice.git
+git clone https://github.com/luizcantelmo/image-microservice.git
 cd image-microservice
 ```
 
