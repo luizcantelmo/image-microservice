@@ -1,0 +1,36 @@
+{
+  "products": [
+    {
+      "Referencia": "CAM-001",
+      "DescricaoFinal": "Camiseta Premium Algodão 100%",
+      "Preco": 89.90,
+      "PrecoPromocional": 69.90,
+      "PrecoPromocionalAVista": 65.90,
+      "TamanhosDisponiveis": "P, M, G, GG, XG",
+      "NumeracaoUtilizada": "M",
+      "Esgotado": false
+    },
+    {
+      "Referencia": "CAL-002",
+      "DescricaoFinal": "Calça Jeans Slim Fit",
+      "Preco": 129.90,
+      "PrecoPromocional": 0,
+      "PrecoPromocionalAVista": 0,
+      "TamanhosDisponiveis": "28, 30, 32, 34, 36",
+      "NumeracaoUtilizada": "32",
+      "Esgotado": true
+    },
+    {
+      "Referencia": "BLZ-003",
+      "DescricaoFinal": "Blazer Social Preto",
+      "Preco": 249.90,
+      "PrecoPromocional": 199.90,
+      "PrecoPromocionalAVista": 189.90,
+      "TamanhosDisponiveis": "P, M, G, GG",
+      "NumeracaoUtilizada": "G",
+      "Esgotado": false
+    }
+  ],
+  "original_image_url": "https://via.placeholder.com/1200x800",
+  "watermark_url": null
+}

@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Aplicação Flask
+  app:
+    build: .
+    container_name: image-processing-app
+    ports:
+      - "5001:5001"
+    environment:
+      - DEBUG=False
+      - ENVIRONMENT=production
+      - FLASK_PORT=5001
+      - FLASK_HOST=0.0.0.0
+      - USE_REDIS=True
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./logs:/app/logs
+      - ./temp_processed_images:/app/temp_processed_images
+      - ./fonts:/app/fonts
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - image-network
+
+  # Redis para gerenciamento de tarefas
+  redis:
+    image: redis:7-alpine
+    container_name: image-processing-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - image-network
+    command: redis-server --appendonly yes
+
+  # Nginx Proxy
+  nginx:
+    image: nginx:latest
+    container_name: image-processing-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-config.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - image-network
+
+volumes:
+  redis-data:
+
+networks:
+  image-network:
+    driver: bridge

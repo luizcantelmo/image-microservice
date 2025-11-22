@@ -1,0 +1,38 @@
+[Unit]
+Description=Image Processing Microservice
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/image-processing
+Environment="PATH=/opt/image-processing/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/opt/image-processing/.env
+
+# Não executar como daemon (Gunicorn gerencia isso)
+ExecStart=/opt/image-processing/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind 0.0.0.0:5001 \
+    --timeout 60 \
+    --access-logfile /opt/image-processing/logs/access.log \
+    --error-logfile /opt/image-processing/logs/error.log \
+    --log-level info \
+    wsgi:app
+
+Restart=always
+RestartSec=10
+
+# Limpeza de recursos
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Limites
+StandardOutput=append:/opt/image-processing/logs/app.log
+StandardError=append:/opt/image-processing/logs/error.log
+
+[Install]
+WantedBy=multi-user.target
