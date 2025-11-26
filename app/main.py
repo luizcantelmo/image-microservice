@@ -101,6 +101,8 @@ def process_image_request():
     
     data = request.get_json()
     
+    logger.info(f"📦 Payload RAW recebido: {list(data.keys())}")
+    
     # Validar payload
     is_valid, error_message = validate_process_image_payload(data)
     if not is_valid:
@@ -109,9 +111,18 @@ def process_image_request():
     
     products = data.get('products')
     original_image_url = data.get('original_image_url')
-    theme_url = data.get('theme_url')  # também aceita watermark_url
+    
+    # Buscar tema - aceita tanto theme_url quanto watermark_url
+    theme_url = data.get('theme_url')
+    watermark_url = data.get('watermark_url')
+    
+    logger.info(f"🔍 DEBUG - theme_url no payload: {theme_url}")
+    logger.info(f"🔍 DEBUG - watermark_url no payload: {watermark_url}")
+    
+    # Priorizar watermark_url se theme_url não existir
     if not theme_url:
-        theme_url = data.get('watermark_url')
+        theme_url = watermark_url
+        logger.info(f"💡 Usando watermark_url como theme_url: {theme_url}")
     
     # Gerar ID de tarefa
     task_id = str(uuid.uuid4())
