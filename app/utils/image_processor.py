@@ -155,7 +155,7 @@ class ImageProcessor:
         )
         
         # Inicializar cursor de posição Y para texto
-        text_cursor_y = block_y_start + config.PADDING_Y / 2
+        text_cursor_y = block_y_start + 10  # Padding superior reduzido
         
         # Dados do produto
         referencia = product['Referencia']
@@ -166,67 +166,48 @@ class ImageProcessor:
         tamanhos_disponiveis = product['TamanhosDisponiveis']
         numeracao_utilizada = product['NumeracaoUtilizada']
         
+        # Helper para centralizar texto
+        def draw_centered_text(text, y_pos, font):
+            bbox = self._calculate_text_bbox(draw, text, font)
+            text_width = bbox[2] - bbox[0]
+            text_x = block_x_start + (block_width - text_width) / 2
+            draw.text((text_x, y_pos), text, font=font, fill=text_color)
+            return bbox
+        
         # Texto: Descrição Final (truncar se muito longa)
-        # Limitar a aproximadamente 20 caracteres para caber no bloco
         descricao_truncada = descricao_final[:20] if len(descricao_final) > 20 else descricao_final
-        draw.text(
-            (block_x_start + config.PADDING_X / 2, text_cursor_y),
-            descricao_truncada,
-            font=self.fonts['description'],
-            fill=text_color
-        )
-        bbox = self._calculate_text_bbox(draw, descricao_truncada, self.fonts['description'])
+        bbox = draw_centered_text(descricao_truncada, text_cursor_y, self.fonts['description'])
         text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Texto: Referência
         ref_text = f"Ref {referencia}"
-        draw.text(
-            (block_x_start + config.PADDING_X / 2, text_cursor_y),
-            ref_text,
-            font=self.fonts['description'],
-            fill=text_color
-        )
-        bbox = self._calculate_text_bbox(draw, ref_text, self.fonts['description'])
+        bbox = draw_centered_text(ref_text, text_cursor_y, self.fonts['description'])
         text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        # Texto: Tamanho e Numeração
-        size_text = f"TAM: {numeracao_utilizada}"
-        draw.text(
-            (block_x_start + config.PADDING_X / 2, text_cursor_y),
-            size_text,
-            font=self.fonts['description'],
-            fill=text_color
-        )
-        bbox = self._calculate_text_bbox(draw, size_text, self.fonts['description'])
-        text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
-        
-        # Texto: Veste
+        # Texto: Tamanhos Disponíveis (não numeração utilizada!)
         if tamanhos_disponiveis and tamanhos_disponiveis != 'N/A':
-            draw.text(
-                (block_x_start + config.PADDING_X / 2, text_cursor_y),
-                tamanhos_disponiveis,
-                font=self.fonts['description'],
-                fill=text_color
-            )
-            bbox = self._calculate_text_bbox(draw, tamanhos_disponiveis, self.fonts['description'])
+            tam_text = f"Tam: {tamanhos_disponiveis}"
+            bbox = draw_centered_text(tam_text, text_cursor_y, self.fonts['description'])
             text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        # Seção de Preço
+        # Texto: Usei (numeração utilizada)
+        usei_text = f"Usei: {numeracao_utilizada}"
+        bbox = draw_centered_text(usei_text, text_cursor_y, self.fonts['description'])
+        text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        
+        # Seção de Preço (centralizado)
         if preco_promocional > 0:
             # Preço "DE" (riscado)
             de_text = f"DE {self._format_price_text(preco)}"
-            draw.text(
-                (block_x_start + config.PADDING_X / 2, text_cursor_y),
-                de_text,
-                font=self.fonts['price'],
-                fill=text_color
-            )
-            # Desenhar linha riscada
             bbox = self._calculate_text_bbox(draw, de_text, self.fonts['price'])
+            text_width = bbox[2] - bbox[0]
+            text_x = block_x_start + (block_width - text_width) / 2
+            draw.text((text_x, text_cursor_y), de_text, font=self.fonts['price'], fill=text_color)
+            
+            # Desenhar linha riscada
             strike_y = text_cursor_y + (bbox[3] - bbox[1]) / 2 - 2
             draw.line(
-                [(block_x_start + config.PADDING_X / 2, int(strike_y)),
-                 (block_x_start + config.PADDING_X / 2 + (bbox[2] - bbox[0]), int(strike_y))],
+                [(text_x, int(strike_y)), (text_x + text_width, int(strike_y))],
                 fill=text_color,
                 width=2
             )
@@ -234,33 +215,17 @@ class ImageProcessor:
             
             # Preço promocional (no cartão)
             promo_text = f"POR {self._format_price_text(preco_promocional)} cartão"
-            draw.text(
-                (block_x_start + config.PADDING_X / 2, text_cursor_y),
-                promo_text,
-                font=self.fonts['price'],
-                fill=text_color
-            )
-            bbox = self._calculate_text_bbox(draw, promo_text, self.fonts['price'])
+            bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
             text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
             # Preço à vista
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
-                draw.text(
-                    (block_x_start + config.PADDING_X / 2, text_cursor_y),
-                    vista_text,
-                    font=self.fonts['price'],
-                    fill=text_color
-                )
+                draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
         else:
             # Preço normal
             price_text = self._format_price_text(preco)
-            draw.text(
-                (block_x_start + config.PADDING_X / 2, text_cursor_y),
-                price_text,
-                font=self.fonts['price'],
-                fill=text_color
-            )
+            draw_centered_text(price_text, text_cursor_y, self.fonts['price'])
     
     def _draw_esgotado_flag(self, image, block_x_start, block_y_start, block_width, block_total_height):
         """
@@ -321,26 +286,27 @@ class ImageProcessor:
         Returns:
             int: Altura total do bloco
         """
-        height = 0
+        height = 10  # Padding superior reduzido
         
         # Descrição
-        bbox = self._calculate_text_bbox(draw, product['DescricaoFinal'], self.fonts['description'])
+        bbox = self._calculate_text_bbox(draw, product['DescricaoFinal'][:20], self.fonts['description'])
         height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Referência
         ref_text = f"Ref {product['Referencia']}"
-        bbox = self._calculate_text_bbox(draw, ref_text, self.fonts['ref_promo'])
+        bbox = self._calculate_text_bbox(draw, ref_text, self.fonts['description'])
         height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        # Tamanho
-        size_text = f"TAM: {product['NumeracaoUtilizada']} (Modelo)"
-        bbox = self._calculate_text_bbox(draw, size_text, self.fonts['ref_promo'])
-        height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
-        
-        # Veste
+        # Tamanhos disponíveis (se houver)
         if product['TamanhosDisponiveis'] and product['TamanhosDisponiveis'] != 'N/A':
-            bbox = self._calculate_text_bbox(draw, "Veste: X", self.fonts['ref_promo'])
+            tam_text = f"Tam: {product['TamanhosDisponiveis']}"
+            bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        
+        # Usei (numeração utilizada)
+        usei_text = f"Usei: {product['NumeracaoUtilizada']}"
+        bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
+        height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
@@ -351,7 +317,7 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        return int(height + (2 * config.PADDING_Y))
+        return int(height + 10)  # Padding inferior reduzido
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None):
         """

@@ -41,9 +41,9 @@ FONT_PRICE_SIZE = int(os.getenv('FONT_PRICE_SIZE', 30))
 FONT_ESGOTADO_SIZE = int(os.getenv('FONT_ESGOTADO_SIZE', 40))
 
 # ============== Layout da Imagem ==============
-PADDING_X = int(os.getenv('PADDING_X', 30))
+PADDING_X = int(os.getenv('PADDING_X', 20))  # Reduzido de 30 para 20 (menos margem lateral)
 PADDING_Y = int(os.getenv('PADDING_Y', 80))  # Aumentado de 30 para 80 (mais afastado da borda)
-LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.5))  # Aumentado de 1.2 para 1.5 (mais espaçamento entre linhas)
+LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.3))  # Reduzido de 1.5 para 1.3 (menos espaço desperdiçado)
 PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.38))  # Reduzido de 0.45 para 0.38 (bloco mais estreito)
 
 # ============== Cores ==============
