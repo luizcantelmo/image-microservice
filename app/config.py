@@ -35,16 +35,16 @@ FONTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'fonts')
 os.makedirs(FONTS_DIR, exist_ok=True)
 
 DEFAULT_FONT_PATH = os.path.join(FONTS_DIR, 'arial.ttf')
-FONT_DESCRIPTION_SIZE = int(os.getenv('FONT_DESCRIPTION_SIZE', 17))  # Reduzido de 28 para 17 (60%)
-FONT_REF_SIZE_PROMO = int(os.getenv('FONT_REF_SIZE_PROMO', 13))  # Reduzido de 22 para 13 (60%)
-FONT_PRICE_SIZE = int(os.getenv('FONT_PRICE_SIZE', 18))  # Reduzido de 30 para 18 (60%)
-FONT_ESGOTADO_SIZE = int(os.getenv('FONT_ESGOTADO_SIZE', 24))  # Reduzido de 40 para 24 (60%)
+FONT_DESCRIPTION_SIZE = int(os.getenv('FONT_DESCRIPTION_SIZE', 20))  # Aumentado de 17 para 20 (+20%)
+FONT_REF_SIZE_PROMO = int(os.getenv('FONT_REF_SIZE_PROMO', 16))  # Aumentado de 13 para 16 (+20%)
+FONT_PRICE_SIZE = int(os.getenv('FONT_PRICE_SIZE', 22))  # Aumentado de 18 para 22 (+20%)
+FONT_ESGOTADO_SIZE = int(os.getenv('FONT_ESGOTADO_SIZE', 29))  # Aumentado de 24 para 29 (+20%)
 
 # ============== Layout da Imagem ==============
-PADDING_X = int(os.getenv('PADDING_X', 20))  # Reduzido de 20 para 12 (60%)
+PADDING_X = int(os.getenv('PADDING_X', 24))  # Aumentado de 20 para 24 (+20%)
 PADDING_Y = int(os.getenv('PADDING_Y', 80))  # Mantém afastado da borda
-LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.5))  # Aumentado de 1.3 para 1.5 (mais espaçamento entre linhas)
-PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.23))  # Reduzido de 0.38 para 0.23 (60%)
+LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.5))  # Mantém espaçamento entre linhas
+PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.28))  # Aumentado de 0.23 para 0.28 (+20%)
 
 # ============== Cores ==============
 # Formato RGB ou RGBA (R, G, B) ou (R, G, B, A)
