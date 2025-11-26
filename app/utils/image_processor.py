@@ -364,26 +364,38 @@ class ImageProcessor:
         Returns:
             str: Caminho do arquivo salvo ou None em caso de erro
         """
-        logger.info(f"Iniciando processamento de imagem para tarefa: {task_id}")
+        logger.info(f"========================================")
+        logger.info(f"🚀 Iniciando processamento de imagem")
+        logger.info(f"   Task ID: {task_id}")
+        logger.info(f"   Produtos: {len(products_data)}")
+        logger.info(f"   URL Original: {original_image_url}")
+        logger.info(f"   URL Tema: {theme_url if theme_url else 'NENHUM TEMA FORNECIDO'}")
+        logger.info(f"========================================")
+        
         task_manager.update_task_status(task_id, "PROCESSING")
         
         try:
             # 1. Download da imagem original
+            logger.info(f"📥 Baixando imagem original...")
             base_image = self._download_image(original_image_url)
             width, height = base_image.size
+            logger.info(f"✅ Imagem original carregada: {width}x{height}")
             
             # 2. Aplicar tema se fornecido
             if theme_url:
                 try:
-                    logger.info(f"📥 Baixando tema de: {theme_url}")
+                    logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
+                    logger.info(f"   URL completa do tema: {theme_url}")
                     theme_image = self._download_image(theme_url)
                     logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
                     base_image = self._apply_theme(base_image, theme_image)
-                    logger.info(f"✅ Tema aplicado com sucesso")
+                    logger.info(f"✅ TEMA APLICADO COM SUCESSO na imagem base")
                 except Exception as e:
-                    logger.warning(f"⚠️ Falha ao aplicar tema, continuando sem ele: {e}")
+                    logger.warning(f"⚠️ FALHA ao aplicar tema: {e}")
+                    logger.warning(f"⚠️ Continuando processamento sem tema")
             else:
-                logger.info("ℹ️ Nenhum tema fornecido, usando apenas imagem base")
+                logger.warning("⚠️ NENHUM TEMA FORNECIDO - Processando apenas com overlay de texto")
+                logger.warning("⚠️ Verifique se theme_url/watermark_url está sendo enviado corretamente")
             
             # 3. Normalizar dados dos produtos
             normalized_products = []

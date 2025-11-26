@@ -109,7 +109,9 @@ def process_image_request():
     
     products = data.get('products')
     original_image_url = data.get('original_image_url')
-    theme_url = data.get('theme_url')
+    theme_url = data.get('theme_url')  # também aceita watermark_url
+    if not theme_url:
+        theme_url = data.get('watermark_url')
     
     # Gerar ID de tarefa
     task_id = str(uuid.uuid4())
@@ -117,7 +119,17 @@ def process_image_request():
     # Marcar como pendente
     task_manager.update_task_status(task_id, "PENDING")
     
-    logger.info(f"Nova requisição de processamento: task_id={task_id}, produtos={len(products)}")
+    logger.info(f"========================================")
+    logger.info(f"📥 NOVA REQUISIÇÃO DE PROCESSAMENTO")
+    logger.info(f"   Task ID: {task_id}")
+    logger.info(f"   Produtos: {len(products)}")
+    logger.info(f"   URL Imagem Original: {original_image_url}")
+    logger.info(f"   URL Tema/Watermark: {theme_url if theme_url else 'NENHUM'}")
+    if theme_url:
+        logger.info(f"   ✅ TEMA SERÁ APLICADO")
+    else:
+        logger.warning(f"   ⚠️ NENHUM TEMA - Verifique payload.theme_url ou payload.watermark_url")
+    logger.info(f"========================================")
     
     # Iniciar processamento em background (thread)
     # Em produção, usar RQ ou Celery
