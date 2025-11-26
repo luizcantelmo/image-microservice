@@ -105,6 +105,59 @@ class ImageProcessor:
             logger.error(f"Erro ao aplicar tema: {e}")
             raise
     
+    def _extract_dominant_color(self, image, region_y_start, region_y_end):
+        """
+        Extrai a cor predominante de uma região específica da imagem
+        
+        Args:
+            image (PIL.Image): Imagem original
+            region_y_start (int): Posição Y inicial da região (0-1, percentual)
+            region_y_end (int): Posição Y final da região (0-1, percentual)
+        
+        Returns:
+            tuple: Cor RGB escurecida e com opacidade (R, G, B, A)
+        """
+        try:
+            width, height = image.size
+            
+            # Calcular coordenadas da região central (40% da largura no centro)
+            center_x_start = int(width * 0.3)
+            center_x_end = int(width * 0.7)
+            y_start = int(height * region_y_start)
+            y_end = int(height * region_y_end)
+            
+            # Recortar região de interesse
+            region = image.crop((center_x_start, y_start, center_x_end, y_end))
+            
+            # Redimensionar para 50x50 pixels para análise rápida
+            region_small = region.resize((50, 50), Image.Resampling.LANCZOS)
+            
+            # Converter para RGB se necessário
+            if region_small.mode != 'RGB':
+                region_small = region_small.convert('RGB')
+            
+            # Calcular cor média
+            pixels = list(region_small.getdata())
+            total_pixels = len(pixels)
+            
+            avg_r = sum(p[0] for p in pixels) // total_pixels
+            avg_g = sum(p[1] for p in pixels) // total_pixels
+            avg_b = sum(p[2] for p in pixels) // total_pixels
+            
+            # Escurecer a cor para garantir contraste com texto branco
+            # Multiplicar por 0.6 para escurecer 40%
+            dark_r = int(avg_r * 0.6)
+            dark_g = int(avg_g * 0.6)
+            dark_b = int(avg_b * 0.6)
+            
+            # Adicionar opacidade (180 = ~70% opaco)
+            return (dark_r, dark_g, dark_b, 180)
+            
+        except Exception as e:
+            logger.warning(f"Erro ao extrair cor predominante: {e}. Usando cor padrão.")
+            # Fallback para preto semi-transparente
+            return (0, 0, 0, 150)
+    
     def _calculate_text_bbox(self, draw, text, font):
         """
         Calcula a caixa delimitadora de um texto
@@ -124,7 +177,7 @@ class ImageProcessor:
         """Formata preço para formato brasileiro (R$ X.XXX,XX)"""
         return f"R${price:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     
-    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional):
+    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional, background_color=None):
         """
         Desenha um bloco de produto na imagem
         
@@ -136,22 +189,27 @@ class ImageProcessor:
             block_width (int): Largura do bloco
             block_total_height (int): Altura total do bloco
             is_promotional (bool): Se é uma promoção
+            background_color (tuple): Cor RGBA de fundo (opcional, usa cor predominante se fornecida)
         """
         block_x_end = block_x_start + block_width
         block_y_end = block_y_start + block_total_height
         
         # Selecionar cores
-        if is_promotional:
-            background_color = config.COLOR_PROMO_BACKGROUND
+        if background_color:
+            # Usar cor predominante extraída da imagem
+            bg_color = background_color
+            text_color = config.COLOR_TEXT_WHITE
+        elif is_promotional:
+            bg_color = config.COLOR_PROMO_BACKGROUND
             text_color = config.COLOR_TEXT_WHITE
         else:
-            background_color = config.COLOR_NORMAL_BACKGROUND
+            bg_color = config.COLOR_NORMAL_BACKGROUND
             text_color = config.COLOR_TEXT_WHITE
         
         # Desenhar fundo do bloco
         draw.rectangle(
             [(block_x_start, block_y_start), (block_x_end, block_y_end)],
-            fill=background_color
+            fill=bg_color
         )
         
         # Inicializar cursor de posição Y para texto
@@ -382,7 +440,10 @@ class ImageProcessor:
             current_y_offset = height - config.PADDING_Y
             product_block_width = int(width * config.PRODUCT_BLOCK_WIDTH_PERCENT)
             
-            for product in reversed(normalized_products):
+            # Calcular regiões para extração de cor (dividir verticalmente pela quantidade de produtos)
+            num_products = len(normalized_products)
+            
+            for idx, product in enumerate(reversed(normalized_products)):
                 is_promotional = product['PrecoPromocional'] > 0
                 
                 # Calcular altura do bloco
@@ -392,7 +453,17 @@ class ImageProcessor:
                 block_y_start = current_y_offset - block_height
                 block_x_start = config.PADDING_X
                 
-                # Desenhar bloco
+                # Extrair cor predominante da região correspondente ao produto
+                # Dividir imagem verticalmente: produto no topo = região superior, etc.
+                product_position = num_products - idx - 1  # Inverte porque reversed
+                region_y_start = product_position / num_products
+                region_y_end = (product_position + 1) / num_products
+                
+                logger.info(f"🎨 Extraindo cor do produto {idx+1}/{num_products} (região Y: {region_y_start:.2f}-{region_y_end:.2f})")
+                dominant_color = self._extract_dominant_color(base_image, region_y_start, region_y_end)
+                logger.info(f"✅ Cor extraída: RGB({dominant_color[0]}, {dominant_color[1]}, {dominant_color[2]})")
+                
+                # Desenhar bloco com cor dinâmica
                 self._draw_product_block(
                     draw,
                     product,
@@ -400,7 +471,8 @@ class ImageProcessor:
                     block_y_start,
                     product_block_width,
                     block_height,
-                    is_promotional
+                    is_promotional,
+                    dominant_color
                 )
                 
                 # Desenhar flag "ESGOTADO" se necessário
