@@ -166,14 +166,16 @@ class ImageProcessor:
         tamanhos_disponiveis = product['TamanhosDisponiveis']
         numeracao_utilizada = product['NumeracaoUtilizada']
         
-        # Texto: Descrição Final
+        # Texto: Descrição Final (truncar se muito longa)
+        # Limitar a aproximadamente 20 caracteres para caber no bloco
+        descricao_truncada = descricao_final[:20] if len(descricao_final) > 20 else descricao_final
         draw.text(
             (block_x_start + config.PADDING_X / 2, text_cursor_y),
-            descricao_final,
+            descricao_truncada,
             font=self.fonts['description'],
             fill=text_color
         )
-        bbox = self._calculate_text_bbox(draw, descricao_final, self.fonts['description'])
+        bbox = self._calculate_text_bbox(draw, descricao_truncada, self.fonts['description'])
         text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Texto: Referência
