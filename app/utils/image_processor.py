@@ -105,33 +105,65 @@ class ImageProcessor:
             logger.error(f"Erro ao aplicar tema: {e}")
             raise
     
-    def _extract_dominant_color(self, image, region_y_start, region_y_end):
+    def _extract_dominant_color(self, image, region_y_start, region_y_end, product_description=""):
         """
-        Extrai a cor predominante de uma região específica da imagem
+        Extrai a cor predominante de uma região específica da imagem baseada no tipo de produto
         
         Args:
             image (PIL.Image): Imagem original
-            region_y_start (int): Posição Y inicial da região (0-1, percentual)
-            region_y_end (int): Posição Y final da região (0-1, percentual)
+            region_y_start (float): Posição Y inicial da região (0-1, percentual)
+            region_y_end (float): Posição Y final da região (0-1, percentual)
+            product_description (str): Descrição do produto para identificar se é peça superior ou inferior
         
         Returns:
-            tuple: Cor RGB escurecida e com opacidade (R, G, B, A)
+            tuple: (cor_fundo, cor_texto) - ambas em formato (R, G, B, A)
         """
         try:
             width, height = image.size
             
-            # Calcular coordenadas da região central (60% da largura no centro)
-            # Focar mais no centro onde geralmente está a peça de roupa
-            center_x_start = int(width * 0.20)
-            center_x_end = int(width * 0.80)
-            y_start = int(height * region_y_start)
-            y_end = int(height * region_y_end)
+            # Definir retângulo central vertical (corpo da modelo)
+            # Horizontal: 30%-70% da largura (40% central)
+            body_x_start = int(width * 0.30)
+            body_x_end = int(width * 0.70)
             
-            # Recortar região de interesse
-            region = image.crop((center_x_start, y_start, center_x_end, y_end))
+            # Vertical: desprezar 15% superior (cabeça) e 10% inferior (pés)
+            body_y_start = int(height * 0.15)
+            body_y_end = int(height * 0.90)
             
-            # Redimensionar para análise mais detalhada
-            region_small = region.resize((150, 150), Image.Resampling.LANCZOS)
+            # Recortar retângulo do corpo
+            body_region = image.crop((body_x_start, body_y_start, body_x_end, body_y_end))
+            body_height = body_region.height
+            
+            # Identificar tipo de produto (superior ou inferior)
+            description_upper = product_description.upper()
+            top_keywords = ['BLUSA', 'T-SHIRT', 'CROPPED', 'CAMISA', 'BLAZER', 'CASACO', 'JAQUETA', 'TOP', 'REGATA']
+            bottom_keywords = ['CALÇA', 'SHORT', 'SAIA', 'BERMUDA', 'PANTALONA', 'LEGGING']
+            
+            is_top = any(keyword in description_upper for keyword in top_keywords)
+            is_bottom = any(keyword in description_upper for keyword in bottom_keywords)
+            
+            # Determinar região dentro do corpo para análise
+            if is_top:
+                # Parte superior: primeiros 45% do corpo
+                sample_y_start = 0
+                sample_y_end = int(body_height * 0.45)
+                logger.info(f"🔍 Produto identificado como SUPERIOR - analisando topo do corpo")
+            elif is_bottom:
+                # Parte inferior: últimos 55% do corpo
+                sample_y_start = int(body_height * 0.45)
+                sample_y_end = body_height
+                logger.info(f"🔍 Produto identificado como INFERIOR - analisando parte baixa do corpo")
+            else:
+                # Não identificado: usar região completa do corpo
+                sample_y_start = 0
+                sample_y_end = body_height
+                logger.info(f"⚠️ Tipo de produto não identificado - analisando corpo inteiro")
+            
+            # Recortar região de amostragem
+            sample_region = body_region.crop((0, sample_y_start, body_region.width, sample_y_end))
+            
+            # Redimensionar para análise
+            region_small = sample_region.resize((150, 150), Image.Resampling.LANCZOS)
             
             # Converter para RGB se necessário
             if region_small.mode != 'RGB':
@@ -140,17 +172,16 @@ class ImageProcessor:
             # Obter pixels
             pixels = list(region_small.getdata())
             
-            # Filtrar cores extremas (muito claras ou muito escuras) antes da análise
+            # Filtrar cores extremas
             filtered_pixels = [
                 p for p in pixels
-                if 80 < sum(p) < 700  # Excluir preto/sombras e branco/fundo
+                if 80 < sum(p) < 700
             ]
             
-            # Se muitos pixels foram filtrados, usar todos
             if len(filtered_pixels) < len(pixels) * 0.3:
                 filtered_pixels = pixels
             
-            # Quantizar para encontrar cores dominantes (16 cores para mais precisão)
+            # Quantizar para encontrar cores dominantes
             temp_img = Image.new('RGB', (len(filtered_pixels), 1))
             temp_img.putdata(filtered_pixels)
             quantized = temp_img.quantize(colors=16, method=2)
@@ -171,20 +202,36 @@ class ImageProcessor:
             
             logger.info(f"🎨 Cor original detectada: RGB({avg_r}, {avg_g}, {avg_b})")
             
-            # Escurecer a cor para garantir contraste com texto branco
-            # Multiplicar por 0.60 para escurecer 40%
-            dark_r = int(avg_r * 0.60)
-            dark_g = int(avg_g * 0.60)
-            dark_b = int(avg_b * 0.60)
-            dark_b = int(avg_b * 0.6)
+            # Calcular luminosidade (0-255)
+            luminosity = (0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b)
+            
+            # Determinar se é cor clara (luminosidade > 180)
+            is_light_color = luminosity > 180
+            
+            if is_light_color:
+                # Fundo claro: escurecer muito pouco e usar texto escuro
+                bg_r = int(avg_r * 0.95)
+                bg_g = int(avg_g * 0.95)
+                bg_b = int(avg_b * 0.95)
+                text_color = (40, 40, 40, 255)  # Texto quase preto
+                logger.info(f"💡 Cor CLARA detectada (luminosidade: {luminosity:.0f}) - usando texto escuro")
+            else:
+                # Fundo escuro: escurecer 40% e usar texto branco
+                bg_r = int(avg_r * 0.60)
+                bg_g = int(avg_g * 0.60)
+                bg_b = int(avg_b * 0.60)
+                text_color = (255, 255, 255, 255)  # Texto branco
+                logger.info(f"🌙 Cor ESCURA detectada (luminosidade: {luminosity:.0f}) - usando texto branco")
             
             # Adicionar opacidade (180 = ~70% opaco)
-            return (dark_r, dark_g, dark_b, 180)
+            background_color = (bg_r, bg_g, bg_b, 180)
+            
+            return (background_color, text_color)
             
         except Exception as e:
             logger.warning(f"Erro ao extrair cor predominante: {e}. Usando cor padrão.")
-            # Fallback para preto semi-transparente
-            return (0, 0, 0, 150)
+            # Fallback para preto semi-transparente com texto branco
+            return ((0, 0, 0, 150), (255, 255, 255, 255))
     
     def _calculate_text_bbox(self, draw, text, font):
         """
@@ -260,7 +307,7 @@ class ImageProcessor:
         
         return int(block_width)
     
-    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional, background_color=None):
+    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional, background_color=None, text_color=None):
         """
         Desenha um bloco de produto na imagem
         
@@ -273,6 +320,7 @@ class ImageProcessor:
             block_total_height (int): Altura total do bloco
             is_promotional (bool): Se é uma promoção
             background_color (tuple): Cor RGBA de fundo (opcional, usa cor predominante se fornecida)
+            text_color (tuple): Cor RGBA do texto (opcional, será determinada automaticamente se não fornecida)
         """
         block_x_end = block_x_start + block_width
         block_y_end = block_y_start + block_total_height
@@ -281,13 +329,14 @@ class ImageProcessor:
         if background_color:
             # Usar cor predominante extraída da imagem
             bg_color = background_color
-            text_color = config.COLOR_TEXT_WHITE
+            # Se text_color não foi fornecida, usar branca por padrão
+            final_text_color = text_color if text_color else config.COLOR_TEXT_WHITE
         elif is_promotional:
             bg_color = config.COLOR_PROMO_BACKGROUND
-            text_color = config.COLOR_TEXT_WHITE
+            final_text_color = config.COLOR_TEXT_WHITE
         else:
             bg_color = config.COLOR_NORMAL_BACKGROUND
-            text_color = config.COLOR_TEXT_WHITE
+            final_text_color = config.COLOR_TEXT_WHITE
         
         # Desenhar fundo do bloco
         draw.rectangle(
@@ -312,7 +361,7 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, text, font)
             text_width = bbox[2] - bbox[0]
             text_x = block_x_start + (block_width - text_width) / 2
-            draw.text((text_x, y_pos), text, font=font, fill=text_color)
+            draw.text((text_x, y_pos), text, font=font, fill=final_text_color)
             return bbox
         
         # Texto: Descrição Final (quebrar em até 2 linhas se necessário)
@@ -556,8 +605,14 @@ class ImageProcessor:
                 region_y_end = (product_position + 1) / num_products
                 
                 logger.info(f"🎨 Extraindo cor do produto {idx+1}/{num_products} (região Y: {region_y_start:.2f}-{region_y_end:.2f})")
-                dominant_color = self._extract_dominant_color(base_image, region_y_start, region_y_end)
-                logger.info(f"✅ Cor extraída: RGB({dominant_color[0]}, {dominant_color[1]}, {dominant_color[2]})")
+                background_color, text_color = self._extract_dominant_color(
+                    base_image, 
+                    region_y_start, 
+                    region_y_end,
+                    product['DescricaoFinal']
+                )
+                logger.info(f"✅ Cor de fundo: RGB({background_color[0]}, {background_color[1]}, {background_color[2]})")
+                logger.info(f"✅ Cor de texto: RGB({text_color[0]}, {text_color[1]}, {text_color[2]})")
                 
                 # Desenhar bloco com cor dinâmica
                 self._draw_product_block(
@@ -568,7 +623,8 @@ class ImageProcessor:
                     product_block_width,
                     block_height,
                     is_promotional,
-                    dominant_color
+                    background_color,
+                    text_color
                 )
                 
                 # Desenhar flag "ESGOTADO" se necessário
@@ -581,8 +637,8 @@ class ImageProcessor:
                         block_height
                     )
                 
-                # Atualizar offset para próximo bloco
-                current_y_offset = block_y_start - config.PADDING_Y
+                # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
+                current_y_offset = block_y_start - config.BLOCK_SPACING
             
             # 5. Salvar imagem final
             output_filename = f"{task_id}.jpg"

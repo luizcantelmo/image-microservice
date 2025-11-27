@@ -42,7 +42,8 @@ FONT_ESGOTADO_SIZE = int(os.getenv('FONT_ESGOTADO_SIZE', 36))  # Reduzido -5% (3
 
 # ============== Layout da Imagem ==============
 PADDING_X = int(os.getenv('PADDING_X', 21))  # Reduzido -5% (22 → 21)
-PADDING_Y = int(os.getenv('PADDING_Y', 80))  # Mantém afastado da borda
+PADDING_Y = int(os.getenv('PADDING_Y', 90))  # Distância da borda inferior (80 → 90)
+BLOCK_SPACING = int(os.getenv('BLOCK_SPACING', 30))  # Espaçamento entre blocos de produtos
 LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.7))  # Reduzido espaçamento (1.98 → 1.7)
 PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.35))  # Reduzido -5% (0.37 → 0.35)
 
