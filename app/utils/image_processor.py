@@ -543,25 +543,20 @@ class ImageProcessor:
             width, height = base_image.size
             logger.info(f"✅ Imagem original carregada: {width}x{height}")
             
-            # 2. Aplicar tema (OBRIGATÓRIO)
-            if not theme_url:
-                error_msg = "❌ TEMA NÃO FORNECIDO - Processamento abortado"
-                logger.error(error_msg)
-                task_manager.update_task_status(task_id, "FAILED", error_msg)
-                return None
-            
-            try:
-                logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
-                logger.info(f"   URL completa do tema: {theme_url}")
-                theme_image = self._download_image(theme_url)
-                logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
-                base_image = self._apply_theme(base_image, theme_image)
-                logger.info(f"✅ TEMA APLICADO COM SUCESSO na imagem base")
-            except Exception as e:
-                error_msg = f"❌ FALHA ao aplicar tema: {e}"
-                logger.error(error_msg)
-                task_manager.update_task_status(task_id, "FAILED", error_msg)
-                return None
+            # 2. Aplicar tema (se fornecido e disponível)
+            if theme_url:
+                try:
+                    logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
+                    logger.info(f"   URL completa do tema: {theme_url}")
+                    theme_image = self._download_image(theme_url)
+                    logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
+                    base_image = self._apply_theme(base_image, theme_image)
+                    logger.info(f"✅ TEMA APLICADO COM SUCESSO na imagem base")
+                except Exception as e:
+                    logger.warning(f"⚠️ FALHA ao aplicar tema: {e}")
+                    logger.warning(f"⚠️ Continuando processamento sem tema - apenas blocos de produto")
+            else:
+                logger.warning("⚠️ NENHUM TEMA FORNECIDO - Processando apenas com overlay de blocos")
             
             # 3. Normalizar dados dos produtos
             normalized_products = []
