@@ -202,6 +202,61 @@ class ImageProcessor:
         """Formata preço para formato brasileiro (R$ X.XXX,XX)"""
         return f"R${price:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     
+    def _split_description(self, description, max_width, font, draw):
+        """
+        Divide a descrição em até 2 linhas se exceder a largura máxima
+        
+        Args:
+            description (str): Texto da descrição
+            max_width (int): Largura máxima em pixels
+            font: Fonte a ser usada
+            draw: Objeto de desenho
+        
+        Returns:
+            list: Lista de linhas (1 ou 2 elementos)
+        """
+        # Verificar se cabe em uma linha
+        bbox = self._calculate_text_bbox(draw, description, font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width:
+            return [description]
+        
+        # Tentar dividir por espaço ou hífen
+        words = description.replace('-', '- ').split()
+        if len(words) <= 1:
+            # Se for palavra única muito longa, dividir no meio
+            mid = len(description) // 2
+            return [description[:mid], description[mid:]]
+        
+        # Dividir em duas linhas otimizando o espaço
+        mid_point = len(words) // 2
+        line1 = ' '.join(words[:mid_point])
+        line2 = ' '.join(words[mid_point:])
+        
+        return [line1, line2]
+    
+    def _calculate_dynamic_block_width(self, draw, product):
+        """
+        Calcula a largura do bloco baseada no texto mais longo (Tam: ESGOTADO) + padding
+        
+        Args:
+            draw: Objeto de desenho
+            product (dict): Dados do produto
+        
+        Returns:
+            int: Largura do bloco em pixels
+        """
+        # Texto de referência: "Tam: ESGOTADO" é o mais longo esperado
+        reference_text = "Tam: ESGOTADO"
+        bbox = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
+        max_text_width = bbox[2] - bbox[0]
+        
+        # Adicionar padding (2x PADDING_X para esquerda e direita)
+        block_width = max_text_width + (2 * config.PADDING_X)
+        
+        return int(block_width)
+    
     def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional, background_color=None):
         """
         Desenha um bloco de produto na imagem
@@ -257,10 +312,15 @@ class ImageProcessor:
             draw.text((text_x, y_pos), text, font=font, fill=text_color)
             return bbox
         
-        # Texto: Descrição Final (truncar se muito longa)
-        descricao_truncada = descricao_final[:20] if len(descricao_final) > 20 else descricao_final
-        bbox = draw_centered_text(descricao_truncada, text_cursor_y, self.fonts['description'])
-        text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        # Texto: Descrição Final (quebrar em até 2 linhas se necessário)
+        reference_text = "Tam: ESGOTADO"
+        bbox_ref = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
+        max_width = bbox_ref[2] - bbox_ref[0]
+        
+        description_lines = self._split_description(descricao_final, max_width, self.fonts['description'], draw)
+        for line in description_lines:
+            bbox = draw_centered_text(line, text_cursor_y, self.fonts['description'])
+            text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Texto: Referência
         ref_text = f"Ref {referencia}"
@@ -371,9 +431,14 @@ class ImageProcessor:
         """
         height = 10  # Padding superior reduzido
         
-        # Descrição
-        bbox = self._calculate_text_bbox(draw, product['DescricaoFinal'][:20], self.fonts['description'])
-        height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        # Descrição (pode ter 1 ou 2 linhas)
+        reference_text = "Tam: ESGOTADO"
+        bbox_ref = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
+        max_width = bbox_ref[2] - bbox_ref[0]
+        
+        description_lines = self._split_description(product['DescricaoFinal'], max_width, self.fonts['description'], draw)
+        bbox = self._calculate_text_bbox(draw, "X", self.fonts['description'])
+        height += len(description_lines) * (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
         # Referência
         ref_text = f"Ref {product['Referencia']}"
@@ -463,7 +528,10 @@ class ImageProcessor:
             
             # Calcular espaço necessário e posições dos blocos
             current_y_offset = height - config.PADDING_Y
-            product_block_width = int(width * config.PRODUCT_BLOCK_WIDTH_PERCENT)
+            
+            # Calcular largura dinâmica baseada no primeiro produto (todos terão a mesma largura)
+            product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0])
+            logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px")
             
             # Calcular regiões para extração de cor (dividir verticalmente pela quantidade de produtos)
             num_products = len(normalized_products)
