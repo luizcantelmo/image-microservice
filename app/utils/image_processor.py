@@ -120,34 +120,59 @@ class ImageProcessor:
         try:
             width, height = image.size
             
-            # Calcular coordenadas da região central (40% da largura no centro)
-            center_x_start = int(width * 0.3)
-            center_x_end = int(width * 0.7)
+            # Calcular coordenadas da região central (50% da largura no centro)
+            # Focar mais no centro onde geralmente está a peça de roupa
+            center_x_start = int(width * 0.25)
+            center_x_end = int(width * 0.75)
             y_start = int(height * region_y_start)
             y_end = int(height * region_y_end)
             
             # Recortar região de interesse
             region = image.crop((center_x_start, y_start, center_x_end, y_end))
             
-            # Redimensionar para 50x50 pixels para análise rápida
-            region_small = region.resize((50, 50), Image.Resampling.LANCZOS)
+            # Redimensionar para análise e aplicar quantização para identificar cores dominantes
+            region_small = region.resize((100, 100), Image.Resampling.LANCZOS)
             
             # Converter para RGB se necessário
             if region_small.mode != 'RGB':
                 region_small = region_small.convert('RGB')
             
-            # Calcular cor média
-            pixels = list(region_small.getdata())
-            total_pixels = len(pixels)
+            # Quantizar para reduzir para as cores mais dominantes (máximo 8 cores)
+            quantized = region_small.quantize(colors=8, method=2)
+            palette_image = quantized.convert('RGB')
             
-            avg_r = sum(p[0] for p in pixels) // total_pixels
-            avg_g = sum(p[1] for p in pixels) // total_pixels
-            avg_b = sum(p[2] for p in pixels) // total_pixels
+            # Obter paleta de cores e contar pixels de cada cor
+            pixels = list(palette_image.getdata())
+            color_count = {}
+            
+            for pixel in pixels:
+                if pixel in color_count:
+                    color_count[pixel] += 1
+                else:
+                    color_count[pixel] = 1
+            
+            # Filtrar cores muito claras (branco/fundo) e muito escuras (preto)
+            # Cores claras: soma RGB > 650 (médio > 216)
+            # Cores escuras: soma RGB < 100
+            filtered_colors = {
+                color: count for color, count in color_count.items()
+                if 100 < sum(color) < 650
+            }
+            
+            # Se todas as cores foram filtradas, usar a cor mais comum sem filtro
+            if not filtered_colors:
+                dominant_color = max(color_count.items(), key=lambda x: x[1])[0]
+            else:
+                # Usar a cor mais comum após filtro
+                dominant_color = max(filtered_colors.items(), key=lambda x: x[1])[0]
+            
+            avg_r, avg_g, avg_b = dominant_color
             
             # Escurecer a cor para garantir contraste com texto branco
-            # Multiplicar por 0.6 para escurecer 40%
-            dark_r = int(avg_r * 0.6)
-            dark_g = int(avg_g * 0.6)
+            # Multiplicar por 0.65 para escurecer 35%
+            dark_r = int(avg_r * 0.65)
+            dark_g = int(avg_g * 0.65)
+            dark_b = int(avg_b * 0.65)
             dark_b = int(avg_b * 0.6)
             
             # Adicionar opacidade (180 = ~70% opaco)
