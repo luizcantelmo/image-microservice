@@ -307,7 +307,7 @@ class ImageProcessor:
         
         return int(block_width)
     
-    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional, background_color=None, text_color=None):
+    def _draw_product_block(self, draw, product, block_x_start, block_y_start, block_width, block_total_height, is_promotional):
         """
         Desenha um bloco de produto na imagem
         
@@ -319,24 +319,18 @@ class ImageProcessor:
             block_width (int): Largura do bloco
             block_total_height (int): Altura total do bloco
             is_promotional (bool): Se é uma promoção
-            background_color (tuple): Cor RGBA de fundo (opcional, usa cor predominante se fornecida)
-            text_color (tuple): Cor RGBA do texto (opcional, será determinada automaticamente se não fornecida)
         """
         block_x_end = block_x_start + block_width
         block_y_end = block_y_start + block_total_height
         
-        # Selecionar cores
-        if background_color:
-            # Usar cor predominante extraída da imagem
-            bg_color = background_color
-            # Se text_color não foi fornecida, usar branca por padrão
-            final_text_color = text_color if text_color else config.COLOR_TEXT_WHITE
-        elif is_promotional:
+        # Cores fixas: preto para normal, vermelho para promoção
+        if is_promotional:
             bg_color = config.COLOR_PROMO_BACKGROUND
-            final_text_color = config.COLOR_TEXT_WHITE
         else:
             bg_color = config.COLOR_NORMAL_BACKGROUND
-            final_text_color = config.COLOR_TEXT_WHITE
+        
+        # Texto sempre branco
+        text_color = config.COLOR_TEXT_WHITE
         
         # Desenhar fundo do bloco
         draw.rectangle(
@@ -361,7 +355,7 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, text, font)
             text_width = bbox[2] - bbox[0]
             text_x = block_x_start + (block_width - text_width) / 2
-            draw.text((text_x, y_pos), text, font=font, fill=final_text_color)
+            draw.text((text_x, y_pos), text, font=font, fill=text_color)
             return bbox
         
         # Texto: Descrição Final (quebrar em até 2 linhas se necessário)
@@ -549,21 +543,25 @@ class ImageProcessor:
             width, height = base_image.size
             logger.info(f"✅ Imagem original carregada: {width}x{height}")
             
-            # 2. Aplicar tema se fornecido
-            if theme_url:
-                try:
-                    logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
-                    logger.info(f"   URL completa do tema: {theme_url}")
-                    theme_image = self._download_image(theme_url)
-                    logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
-                    base_image = self._apply_theme(base_image, theme_image)
-                    logger.info(f"✅ TEMA APLICADO COM SUCESSO na imagem base")
-                except Exception as e:
-                    logger.warning(f"⚠️ FALHA ao aplicar tema: {e}")
-                    logger.warning(f"⚠️ Continuando processamento sem tema")
-            else:
-                logger.warning("⚠️ NENHUM TEMA FORNECIDO - Processando apenas com overlay de texto")
-                logger.warning("⚠️ Verifique se theme_url/watermark_url está sendo enviado corretamente")
+            # 2. Aplicar tema (OBRIGATÓRIO)
+            if not theme_url:
+                error_msg = "❌ TEMA NÃO FORNECIDO - Processamento abortado"
+                logger.error(error_msg)
+                task_manager.update_task_status(task_id, "FAILED", error_msg)
+                return None
+            
+            try:
+                logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
+                logger.info(f"   URL completa do tema: {theme_url}")
+                theme_image = self._download_image(theme_url)
+                logger.info(f"✅ Tema baixado com sucesso: {theme_image.size}")
+                base_image = self._apply_theme(base_image, theme_image)
+                logger.info(f"✅ TEMA APLICADO COM SUCESSO na imagem base")
+            except Exception as e:
+                error_msg = f"❌ FALHA ao aplicar tema: {e}"
+                logger.error(error_msg)
+                task_manager.update_task_status(task_id, "FAILED", error_msg)
+                return None
             
             # 3. Normalizar dados dos produtos
             normalized_products = []
@@ -598,23 +596,7 @@ class ImageProcessor:
                 block_y_start = current_y_offset - block_height
                 block_x_start = config.PADDING_X
                 
-                # Extrair cor predominante da região correspondente ao produto
-                # Dividir imagem verticalmente: produto no topo = região superior, etc.
-                product_position = num_products - idx - 1  # Inverte porque reversed
-                region_y_start = product_position / num_products
-                region_y_end = (product_position + 1) / num_products
-                
-                logger.info(f"🎨 Extraindo cor do produto {idx+1}/{num_products} (região Y: {region_y_start:.2f}-{region_y_end:.2f})")
-                background_color, text_color = self._extract_dominant_color(
-                    base_image, 
-                    region_y_start, 
-                    region_y_end,
-                    product['DescricaoFinal']
-                )
-                logger.info(f"✅ Cor de fundo: RGB({background_color[0]}, {background_color[1]}, {background_color[2]})")
-                logger.info(f"✅ Cor de texto: RGB({text_color[0]}, {text_color[1]}, {text_color[2]})")
-                
-                # Desenhar bloco com cor dinâmica
+                # Desenhar bloco com cores padrão (preto ou vermelho se promoção)
                 self._draw_product_block(
                     draw,
                     product,
@@ -622,9 +604,7 @@ class ImageProcessor:
                     block_y_start,
                     product_block_width,
                     block_height,
-                    is_promotional,
-                    background_color,
-                    text_color
+                    is_promotional
                 )
                 
                 # Desenhar flag "ESGOTADO" se necessário
