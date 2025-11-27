@@ -120,59 +120,62 @@ class ImageProcessor:
         try:
             width, height = image.size
             
-            # Calcular coordenadas da região central (50% da largura no centro)
+            # Calcular coordenadas da região central (60% da largura no centro)
             # Focar mais no centro onde geralmente está a peça de roupa
-            center_x_start = int(width * 0.25)
-            center_x_end = int(width * 0.75)
+            center_x_start = int(width * 0.20)
+            center_x_end = int(width * 0.80)
             y_start = int(height * region_y_start)
             y_end = int(height * region_y_end)
             
             # Recortar região de interesse
             region = image.crop((center_x_start, y_start, center_x_end, y_end))
             
-            # Redimensionar para análise e aplicar quantização para identificar cores dominantes
-            region_small = region.resize((100, 100), Image.Resampling.LANCZOS)
+            # Redimensionar para análise mais detalhada
+            region_small = region.resize((150, 150), Image.Resampling.LANCZOS)
             
             # Converter para RGB se necessário
             if region_small.mode != 'RGB':
                 region_small = region_small.convert('RGB')
             
-            # Quantizar para reduzir para as cores mais dominantes (máximo 8 cores)
-            quantized = region_small.quantize(colors=8, method=2)
+            # Obter pixels
+            pixels = list(region_small.getdata())
+            
+            # Filtrar cores extremas (muito claras ou muito escuras) antes da análise
+            filtered_pixels = [
+                p for p in pixels
+                if 80 < sum(p) < 700  # Excluir preto/sombras e branco/fundo
+            ]
+            
+            # Se muitos pixels foram filtrados, usar todos
+            if len(filtered_pixels) < len(pixels) * 0.3:
+                filtered_pixels = pixels
+            
+            # Quantizar para encontrar cores dominantes (16 cores para mais precisão)
+            temp_img = Image.new('RGB', (len(filtered_pixels), 1))
+            temp_img.putdata(filtered_pixels)
+            quantized = temp_img.quantize(colors=16, method=2)
             palette_image = quantized.convert('RGB')
             
-            # Obter paleta de cores e contar pixels de cada cor
-            pixels = list(palette_image.getdata())
+            # Contar frequência de cada cor
+            quantized_pixels = list(palette_image.getdata())
             color_count = {}
-            
-            for pixel in pixels:
+            for pixel in quantized_pixels:
                 if pixel in color_count:
                     color_count[pixel] += 1
                 else:
                     color_count[pixel] = 1
             
-            # Filtrar cores muito claras (branco/fundo) e muito escuras (preto)
-            # Cores claras: soma RGB > 650 (médio > 216)
-            # Cores escuras: soma RGB < 100
-            filtered_colors = {
-                color: count for color, count in color_count.items()
-                if 100 < sum(color) < 650
-            }
-            
-            # Se todas as cores foram filtradas, usar a cor mais comum sem filtro
-            if not filtered_colors:
-                dominant_color = max(color_count.items(), key=lambda x: x[1])[0]
-            else:
-                # Usar a cor mais comum após filtro
-                dominant_color = max(filtered_colors.items(), key=lambda x: x[1])[0]
-            
+            # Pegar a cor mais frequente
+            dominant_color = max(color_count.items(), key=lambda x: x[1])[0]
             avg_r, avg_g, avg_b = dominant_color
             
+            logger.info(f"🎨 Cor original detectada: RGB({avg_r}, {avg_g}, {avg_b})")
+            
             # Escurecer a cor para garantir contraste com texto branco
-            # Multiplicar por 0.65 para escurecer 35%
-            dark_r = int(avg_r * 0.65)
-            dark_g = int(avg_g * 0.65)
-            dark_b = int(avg_b * 0.65)
+            # Multiplicar por 0.60 para escurecer 40%
+            dark_r = int(avg_r * 0.60)
+            dark_g = int(avg_g * 0.60)
+            dark_b = int(avg_b * 0.60)
             dark_b = int(avg_b * 0.6)
             
             # Adicionar opacidade (180 = ~70% opaco)
@@ -222,8 +225,8 @@ class ImageProcessor:
         if text_width <= max_width:
             return [description]
         
-        # Tentar dividir por espaço ou hífen
-        words = description.replace('-', '- ').split()
+        # Dividir apenas por espaço (mantém palavras com hífen juntas)
+        words = description.split()
         if len(words) <= 1:
             # Se for palavra única muito longa, dividir no meio
             mid = len(description) // 2
