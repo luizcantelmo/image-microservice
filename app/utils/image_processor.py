@@ -543,40 +543,6 @@ class ImageProcessor:
             width, height = base_image.size
             logger.info(f"✅ Imagem original carregada: {width}x{height}")
             
-            # 1.1. Padronizar tamanho para 900x1600 (formato vertical padrão)
-            TARGET_WIDTH = 900
-            TARGET_HEIGHT = 1600
-            
-            if width != TARGET_WIDTH or height != TARGET_HEIGHT:
-                logger.info(f"📐 Redimensionando imagem para padrão {TARGET_WIDTH}x{TARGET_HEIGHT}...")
-                
-                # Calcular proporções
-                aspect_ratio = width / height
-                target_ratio = TARGET_WIDTH / TARGET_HEIGHT
-                
-                if aspect_ratio > target_ratio:
-                    # Imagem mais larga - ajustar pela largura e crop vertical
-                    new_width = TARGET_WIDTH
-                    new_height = int(TARGET_WIDTH / aspect_ratio)
-                    base_image = base_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    
-                    # Centralizar verticalmente
-                    top = (new_height - TARGET_HEIGHT) // 2
-                    base_image = base_image.crop((0, top, TARGET_WIDTH, top + TARGET_HEIGHT))
-                else:
-                    # Imagem mais alta - ajustar pela altura e crop horizontal
-                    new_height = TARGET_HEIGHT
-                    new_width = int(TARGET_HEIGHT * aspect_ratio)
-                    base_image = base_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    
-                    # Centralizar horizontalmente
-                    left = (new_width - TARGET_WIDTH) // 2
-                    base_image = base_image.crop((left, 0, left + TARGET_WIDTH, TARGET_HEIGHT))
-                
-                logger.info(f"✅ Imagem redimensionada: {base_image.size}")
-            else:
-                logger.info(f"✅ Imagem já está no tamanho padrão {TARGET_WIDTH}x{TARGET_HEIGHT}")
-            
             # 2. Aplicar tema (se fornecido e disponível)
             if theme_url:
                 try:
