@@ -35,10 +35,15 @@ FONTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'fonts')
 os.makedirs(FONTS_DIR, exist_ok=True)
 
 DEFAULT_FONT_PATH = os.path.join(FONTS_DIR, 'arial.ttf')
+DEFAULT_FONT_BOLD_PATH = os.path.join(FONTS_DIR, 'arialbd.ttf')  # Arial Bold para promoção
 FONT_DESCRIPTION_SIZE = int(os.getenv('FONT_DESCRIPTION_SIZE', 25))  # Reduzido -5% (26 → 25)
 FONT_REF_SIZE_PROMO = int(os.getenv('FONT_REF_SIZE_PROMO', 21))  # Reduzido -5% (22 → 21)
 FONT_PRICE_SIZE = int(os.getenv('FONT_PRICE_SIZE', 28))  # Reduzido -5% (29 → 28)
 FONT_ESGOTADO_SIZE = int(os.getenv('FONT_ESGOTADO_SIZE', 36))  # Reduzido -5% (38 → 36)
+
+# Sombra do texto (para melhor legibilidade em fundos coloridos)
+TEXT_SHADOW_OFFSET = 2  # pixels de deslocamento da sombra
+TEXT_SHADOW_COLOR = (0, 0, 0, 180)  # Preto semi-transparente
 
 # ============== Layout da Imagem ==============
 PADDING_X = int(os.getenv('PADDING_X', 21))  # Reduzido -5% (22 → 21)
@@ -49,7 +54,7 @@ PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.3
 
 # ============== Cores ==============
 # Formato RGB ou RGBA (R, G, B) ou (R, G, B, A)
-COLOR_PROMO_BACKGROUND = (255, 0, 0, 200)  # Vermelho semi-transparente
+COLOR_PROMO_BACKGROUND = (220, 20, 60, 220)  # Crimson menos saturado e mais opaco
 COLOR_NORMAL_BACKGROUND = (0, 0, 0, 150)   # Preto semi-transparente
 COLOR_TEXT_WHITE = (255, 255, 255)         # Branco
 COLOR_ESGOTADO_BACKGROUND = (255, 0, 0, 180)  # Vermelho para faixa de esgotado

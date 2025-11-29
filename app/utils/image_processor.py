@@ -248,6 +248,26 @@ class ImageProcessor:
         
         return bbox
     
+    def _draw_text_with_shadow(self, draw, position, text, font, fill, shadow=True):
+        """
+        Desenha texto com sombra para melhor legibilidade
+        
+        Args:
+            draw: Objeto de desenho
+            position: Tupla (x, y)
+            text: Texto a desenhar
+            font: Fonte
+            fill: Cor do texto
+            shadow: Se deve desenhar sombra
+        """
+        if shadow:
+            # Desenhar sombra primeiro (offset)
+            shadow_pos = (position[0] + config.TEXT_SHADOW_OFFSET, position[1] + config.TEXT_SHADOW_OFFSET)
+            draw.text(shadow_pos, text, font=font, fill=config.TEXT_SHADOW_COLOR)
+        
+        # Desenhar texto principal
+        draw.text(position, text, font=font, fill=fill)
+    
     def _format_price_text(self, price):
         """Formata preço para formato brasileiro (R$ X.XXX,XX)"""
         return f"R${price:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -286,21 +306,36 @@ class ImageProcessor:
         
         return [line1, line2]
     
-    def _calculate_dynamic_block_width(self, draw, product):
+    def _calculate_dynamic_block_width(self, draw, product, is_promotional=False):
         """
-        Calcula a largura do bloco baseada no texto mais longo (Tam: ESGOTADO) + padding
+        Calcula a largura do bloco baseada no texto mais longo + padding
+        Para produtos promocionais, considera "POR R$119,90 no cartão" como referência
         
         Args:
             draw: Objeto de desenho
             product (dict): Dados do produto
+            is_promotional (bool): Se é um produto promocional
         
         Returns:
             int: Largura do bloco em pixels
         """
-        # Texto de referência: "Tam: ESGOTADO" é o mais longo esperado
-        reference_text = "Tam: ESGOTADO"
-        bbox = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
-        max_text_width = bbox[2] - bbox[0]
+        if is_promotional:
+            # Para promoção, usar o texto mais longo possível
+            reference_texts = [
+                "POR R$119,90 no cartão",  # Texto mais longo esperado
+                "DE R$119,90",
+                "R$119,90 à vista"
+            ]
+            max_text_width = 0
+            for text in reference_texts:
+                bbox = self._calculate_text_bbox(draw, text, self.fonts['price'])
+                text_width = bbox[2] - bbox[0]
+                max_text_width = max(max_text_width, text_width)
+        else:
+            # Texto de referência normal: "Tam: ESGOTADO"
+            reference_text = "Tam: ESGOTADO"
+            bbox = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
+            max_text_width = bbox[2] - bbox[0]
         
         # Adicionar padding (2x PADDING_X para esquerda e direita)
         block_width = max_text_width + (2 * config.PADDING_X)
@@ -350,12 +385,12 @@ class ImageProcessor:
         tamanhos_disponiveis = product['TamanhosDisponiveis']
         numeracao_utilizada = product['NumeracaoUtilizada']
         
-        # Helper para centralizar texto
-        def draw_centered_text(text, y_pos, font):
+        # Helper para centralizar texto (com sombra se promocional)
+        def draw_centered_text(text, y_pos, font, use_shadow=is_promotional):
             bbox = self._calculate_text_bbox(draw, text, font)
             text_width = bbox[2] - bbox[0]
             text_x = block_x_start + (block_width - text_width) / 2
-            draw.text((text_x, y_pos), text, font=font, fill=text_color)
+            self._draw_text_with_shadow(draw, (text_x, y_pos), text, font, text_color, shadow=use_shadow)
             return bbox
         
         # Texto: Descrição Final (quebrar em até 2 linhas se necessário)
@@ -391,7 +426,7 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, de_text, self.fonts['price'])
             text_width = bbox[2] - bbox[0]
             text_x = block_x_start + (block_width - text_width) / 2
-            draw.text((text_x, text_cursor_y), de_text, font=self.fonts['price'], fill=text_color)
+            self._draw_text_with_shadow(draw, (text_x, text_cursor_y), de_text, self.fonts['price'], text_color, shadow=is_promotional)
             
             # Desenhar linha riscada
             strike_y = text_cursor_y + (bbox[3] - bbox[1]) / 2 - 2
@@ -574,9 +609,12 @@ class ImageProcessor:
             # Calcular espaço necessário e posições dos blocos
             current_y_offset = height - config.PADDING_Y
             
+            # Verificar se há produtos promocionais para calcular largura adequada
+            has_promo = any(p['PrecoPromocional'] > 0 for p in normalized_products)
+            
             # Calcular largura dinâmica baseada no primeiro produto (todos terão a mesma largura)
-            product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0])
-            logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px")
+            product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0], is_promotional=has_promo)
+            logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px (promocional: {has_promo})")
             
             # Calcular regiões para extração de cor (dividir verticalmente pela quantidade de produtos)
             num_products = len(normalized_products)
