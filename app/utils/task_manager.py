@@ -87,7 +87,7 @@ class TaskManager:
         
         return {"status": "NOT_FOUND"}
     
-    def update_task_status(self, task_id, status, final_path=None, error_message=None):
+    def update_task_status(self, task_id, status, final_path=None, normal_path=None, error_message=None):
         """Atualiza o status de uma tarefa"""
         try:
             data = {
@@ -95,6 +95,7 @@ class TaskManager:
                 "task_id": task_id,
                 "timestamp": datetime.now().isoformat(),
                 "final_path": final_path,
+                "normal_path": normal_path,
                 "error": error_message
             }
             

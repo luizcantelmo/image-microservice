@@ -548,15 +548,17 @@ class ImageProcessor:
         
         return int(height + 10)  # Padding inferior reduzido
     
-    def process_image(self, task_id, products_data, original_image_url, theme_url=None):
+    def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False):
         """
         Processa uma imagem com os dados de produtos
+        Se generate_dual_version=True, processa 2 versões (com e sem tema)
         
         Args:
             task_id (str): ID único da tarefa
             products_data (list): Lista de produtos
             original_image_url (str): URL da imagem original
             theme_url (str): URL do tema (opcional)
+            generate_dual_version (bool): Se deve gerar versão normal + promocional
         
         Returns:
             str: Caminho do arquivo salvo ou None em caso de erro
@@ -567,6 +569,7 @@ class ImageProcessor:
         logger.info(f"   Produtos: {len(products_data)}")
         logger.info(f"   URL Original: {original_image_url}")
         logger.info(f"   URL Tema: {theme_url if theme_url else 'NENHUM TEMA FORNECIDO'}")
+        logger.info(f"   Dupla versão: {'SIM (normal + promocional)' if generate_dual_version else 'NÃO (apenas normal)'}")
         logger.info(f"========================================")
         
         task_manager.update_task_status(task_id, "PROCESSING")
@@ -578,7 +581,14 @@ class ImageProcessor:
             width, height = base_image.size
             logger.info(f"✅ Imagem original carregada: {width}x{height}")
             
-            # 2. Aplicar tema (se fornecido e disponível)
+            # 2. Preparar versões (com e sem tema)
+            base_image_no_theme = None
+            if generate_dual_version and theme_url:
+                # Salvar cópia sem tema para versão normal
+                base_image_no_theme = base_image.copy()
+                logger.info(f"💾 Salvando cópia da imagem original (sem tema) para versão normal")
+            
+            # Aplicar tema (se fornecido e disponível)
             if theme_url:
                 try:
                     logger.info(f"🎨 TEMA DETECTADO - Iniciando download...")
@@ -653,15 +663,68 @@ class ImageProcessor:
                 # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
                 current_y_offset = block_y_start - config.BLOCK_SPACING
             
-            # 5. Salvar imagem final
+            # 5. Salvar imagem(ns) final(is)
             output_filename = f"{task_id}.jpg"
             final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename)
             
             final_image_rgb = final_image.convert("RGB")
             final_image_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
             
-            logger.info(f"Imagem salva com sucesso: {final_path}")
-            task_manager.update_task_status(task_id, "COMPLETED", final_path=final_path)
+            logger.info(f"✅ Imagem promocional salva: {final_path}")
+            
+            # Se gerar dupla versão, salvar versão sem tema também
+            normal_path = None
+            if generate_dual_version and base_image_no_theme:
+                logger.info(f"🎨 Gerando versão SEM tema promocional...")
+                
+                # Processar versão normal (sem tema, apenas com blocos)
+                final_image_normal = base_image_no_theme.copy()
+                draw_normal = ImageDraw.Draw(final_image_normal)
+                
+                current_y_offset_normal = height - config.PADDING_Y
+                
+                for idx, product in enumerate(reversed(normalized_products)):
+                    is_promotional = product['PrecoPromocional'] > 0
+                    block_height = self._calculate_block_height(draw_normal, product)
+                    block_y_start = current_y_offset_normal - block_height
+                    block_x_start = config.PADDING_X
+                    
+                    self._draw_product_block(
+                        draw_normal,
+                        product,
+                        block_x_start,
+                        block_y_start,
+                        product_block_width,
+                        block_height,
+                        is_promotional
+                    )
+                    
+                    if product['Esgotado']:
+                        final_image_normal = self._draw_esgotado_flag(
+                            final_image_normal,
+                            block_x_start,
+                            block_y_start,
+                            product_block_width,
+                            block_height
+                        )
+                    
+                    current_y_offset_normal = block_y_start - config.BLOCK_SPACING
+                
+                # Salvar versão normal
+                output_filename_normal = f"{task_id}_normal.jpg"
+                normal_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_normal)
+                
+                final_image_normal_rgb = final_image_normal.convert("RGB")
+                final_image_normal_rgb.save(normal_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
+                
+                logger.info(f"✅ Imagem normal (sem tema) salva: {normal_path}")
+            
+            task_manager.update_task_status(
+                task_id, 
+                "COMPLETED", 
+                final_path=final_path,
+                normal_path=normal_path
+            )
             
             return final_path
         

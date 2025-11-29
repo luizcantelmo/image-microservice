@@ -136,6 +136,11 @@ def process_image_request():
     logger.info(f"   Produtos: {len(products)}")
     logger.info(f"   URL Imagem Original: {original_image_url}")
     logger.info(f"   URL Tema/Watermark: {theme_url if theme_url else 'NENHUM'}")
+    
+    # Verificar se há produtos promocionais
+    has_promo = any(p.get('PrecoPromocional', 0) > 0 for p in products)
+    logger.info(f"   🏷️ Produtos promocionais: {'SIM' if has_promo else 'NÃO'}")
+    
     if theme_url:
         logger.info(f"   ✅ TEMA SERÁ APLICADO")
     else:
@@ -143,10 +148,10 @@ def process_image_request():
     logger.info(f"========================================")
     
     # Iniciar processamento em background (thread)
-    # Em produção, usar RQ ou Celery
+    # Passar flag de processamento duplo se houver promoção
     thread = threading.Thread(
         target=image_processor.process_image,
-        args=(task_id, products, original_image_url, theme_url),
+        args=(task_id, products, original_image_url, theme_url, has_promo),
         daemon=True
     )
     thread.start()
@@ -193,6 +198,10 @@ def get_status(task_id):
     
     if status_data["status"] == "COMPLETED":
         response["final_image_url"] = f"{config.BASE_IMAGE_URL}/{task_id}.jpg"
+        # Se houver versão normal (sem tema), incluir também
+        if status_data.get("normal_path"):
+            response["normal_image_url"] = f"{config.BASE_IMAGE_URL}/{task_id}_normal.jpg"
+            logger.info(f"✅ Dupla versão disponível: promocional + normal")
     elif status_data["status"] == "FAILED":
         response["error_message"] = status_data.get("error")
     
