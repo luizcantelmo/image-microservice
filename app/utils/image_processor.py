@@ -403,7 +403,7 @@ class ImageProcessor:
             text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
             # Preço promocional (no cartão)
-            promo_text = f"POR {self._format_price_text(preco_promocional)} cartão"
+            promo_text = f"POR {self._format_price_text(preco_promocional)} no cartão"
             bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
             text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
