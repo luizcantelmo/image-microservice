@@ -612,9 +612,111 @@ class ImageProcessor:
                     logger.error(f"Erro ao normalizar produto: {e}")
                     raise
             
-            # 4. Criar imagem final com todos os blocos de produtos
-            final_image = base_image.copy()
-            draw = ImageDraw.Draw(final_image)
+            # 4. Criar imagem final com blocos de produtos
+            # Se gerar dupla versão: processar NORMAL primeiro (todos produtos, sem tema)
+            # Depois processar PROMOCIONAL (só produtos em oferta, com tema)
+            
+            if generate_dual_version and base_image_no_theme:
+                logger.info(f"🎨 MODO DUPLO: Processando versão NORMAL (todos produtos, sem tema)...")
+                
+                # VERSÃO NORMAL: Base sem tema + TODOS os produtos
+                final_image_normal = base_image_no_theme.copy()
+                draw_normal = ImageDraw.Draw(final_image_normal)
+                
+                current_y_offset_normal = height - config.PADDING_Y
+                product_block_width_normal = self._calculate_dynamic_block_width(draw_normal, normalized_products[0], is_promotional=has_promo)
+                
+                for idx, product in enumerate(reversed(normalized_products)):
+                    is_promotional = product['PrecoPromocional'] > 0
+                    block_height = self._calculate_block_height(draw_normal, product)
+                    block_y_start = current_y_offset_normal - block_height
+                    block_x_start = config.PADDING_X
+                    
+                    self._draw_product_block(
+                        draw_normal,
+                        product,
+                        block_x_start,
+                        block_y_start,
+                        product_block_width_normal,
+                        block_height,
+                        is_promotional
+                    )
+                    
+                    if product['Esgotado']:
+                        final_image_normal = self._draw_esgotado_flag(
+                            final_image_normal,
+                            block_x_start,
+                            block_y_start,
+                            product_block_width_normal,
+                            block_height
+                        )
+                    
+                    current_y_offset_normal = block_y_start - config.BLOCK_SPACING
+                
+                # Salvar versão NORMAL
+                output_filename_normal = f"{task_id}_normal.jpg"
+                normal_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_normal)
+                final_image_normal_rgb = final_image_normal.convert("RGB")
+                final_image_normal_rgb.save(normal_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
+                logger.info(f"✅ Versão NORMAL salva: {normal_path} ({len(normalized_products)} produtos)")
+                
+                # VERSÃO PROMOCIONAL: Base com tema + APENAS produtos em oferta
+                logger.info(f"🎁 Processando versão PROMOCIONAL (só produtos em oferta, com tema)...")
+                
+                # Filtrar apenas produtos promocionais
+                promo_products = [p for p in normalized_products if p['PrecoPromocional'] > 0]
+                
+                if not promo_products:
+                    logger.warning(f"⚠️ Nenhum produto promocional encontrado! Pulando versão promocional.")
+                    final_path = normal_path  # Usar versão normal como padrão
+                else:
+                    final_image_promo = base_image.copy()  # base_image já tem tema aplicado
+                    draw_promo = ImageDraw.Draw(final_image_promo)
+                    
+                    current_y_offset_promo = height - config.PADDING_Y
+                    product_block_width_promo = self._calculate_dynamic_block_width(draw_promo, promo_products[0], is_promotional=True)
+                    
+                    logger.info(f"   Processando {len(promo_products)} produto(s) promocional(is)")
+                    
+                    for idx, product in enumerate(reversed(promo_products)):
+                        block_height = self._calculate_block_height(draw_promo, product)
+                        block_y_start = current_y_offset_promo - block_height
+                        block_x_start = config.PADDING_X
+                        
+                        self._draw_product_block(
+                            draw_promo,
+                            product,
+                            block_x_start,
+                            block_y_start,
+                            product_block_width_promo,
+                            block_height,
+                            True  # Sempre promocional
+                        )
+                        
+                        if product['Esgotado']:
+                            final_image_promo = self._draw_esgotado_flag(
+                                final_image_promo,
+                                block_x_start,
+                                block_y_start,
+                                product_block_width_promo,
+                                block_height
+                            )
+                        
+                        current_y_offset_promo = block_y_start - config.BLOCK_SPACING
+                    
+                    # Salvar versão PROMOCIONAL
+                    output_filename_promo = f"{task_id}.jpg"
+                    final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_promo)
+                    final_image_promo_rgb = final_image_promo.convert("RGB")
+                    final_image_promo_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
+                    logger.info(f"✅ Versão PROMOCIONAL salva: {final_path} ({len(promo_products)} produtos)")
+                
+            else:
+                # MODO SIMPLES: Processar normalmente com TODOS os produtos
+                logger.info(f"📦 MODO SIMPLES: Processando imagem única...")
+                
+                final_image = base_image.copy()
+                draw = ImageDraw.Draw(final_image)
             
             # Calcular espaço necessário e posições dos blocos
             current_y_offset = height - config.PADDING_Y
@@ -662,63 +764,16 @@ class ImageProcessor:
                 
                 # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
                 current_y_offset = block_y_start - config.BLOCK_SPACING
+                
+                # Salvar versão SIMPLES
+                output_filename = f"{task_id}.jpg"
+                final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename)
+                final_image_rgb = final_image.convert("RGB")
+                final_image_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
+                logger.info(f"✅ Imagem salva: {final_path} ({len(normalized_products)} produtos)")
+                normal_path = None
             
-            # 5. Salvar imagem(ns) final(is)
-            output_filename = f"{task_id}.jpg"
-            final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename)
-            
-            final_image_rgb = final_image.convert("RGB")
-            final_image_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
-            
-            logger.info(f"✅ Imagem promocional salva: {final_path}")
-            
-            # Se gerar dupla versão, salvar versão sem tema também
-            normal_path = None
-            if generate_dual_version and base_image_no_theme:
-                logger.info(f"🎨 Gerando versão SEM tema promocional...")
-                
-                # Processar versão normal (sem tema, apenas com blocos)
-                final_image_normal = base_image_no_theme.copy()
-                draw_normal = ImageDraw.Draw(final_image_normal)
-                
-                current_y_offset_normal = height - config.PADDING_Y
-                
-                for idx, product in enumerate(reversed(normalized_products)):
-                    is_promotional = product['PrecoPromocional'] > 0
-                    block_height = self._calculate_block_height(draw_normal, product)
-                    block_y_start = current_y_offset_normal - block_height
-                    block_x_start = config.PADDING_X
-                    
-                    self._draw_product_block(
-                        draw_normal,
-                        product,
-                        block_x_start,
-                        block_y_start,
-                        product_block_width,
-                        block_height,
-                        is_promotional
-                    )
-                    
-                    if product['Esgotado']:
-                        final_image_normal = self._draw_esgotado_flag(
-                            final_image_normal,
-                            block_x_start,
-                            block_y_start,
-                            product_block_width,
-                            block_height
-                        )
-                    
-                    current_y_offset_normal = block_y_start - config.BLOCK_SPACING
-                
-                # Salvar versão normal
-                output_filename_normal = f"{task_id}_normal.jpg"
-                normal_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_normal)
-                
-                final_image_normal_rgb = final_image_normal.convert("RGB")
-                final_image_normal_rgb.save(normal_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
-                
-                logger.info(f"✅ Imagem normal (sem tema) salva: {normal_path}")
-            
+            # Atualizar status da tarefa
             task_manager.update_task_status(
                 task_id, 
                 "COMPLETED", 
