@@ -679,16 +679,19 @@ class ImageProcessor:
                     logger.warning(f"⚠️ Nenhum produto promocional encontrado! Pulando versão promocional.")
                     final_path = normal_path  # Usar versão normal como padrão
                 else:
-                    # Converter base_image (RGBA) para RGB antes de desenhar
-                    # Isso evita problemas com composição alpha
+                    # Criar uma nova imagem RGB a partir da base_image
+                    # Não usar máscara alpha - simplesmente copiar os pixels visíveis
+                    logger.info(f"   🔄 Preparando imagem para desenho (modo: {base_image.mode})...")
+                    
+                    # Compor base_image sobre fundo branco usando alpha_composite
                     if base_image.mode == 'RGBA':
-                        logger.info(f"   🔄 Convertendo imagem RGBA para RGB antes de desenhar...")
-                        base_rgb = Image.new("RGB", base_image.size, (255, 255, 255))
-                        base_rgb.paste(base_image, mask=base_image.split()[3])
-                        final_image_promo = base_rgb
-                        logger.info(f"   ✅ Conversão concluída: {final_image_promo.mode}")
+                        background = Image.new("RGBA", base_image.size, (255, 255, 255, 255))
+                        composite = Image.alpha_composite(background, base_image)
+                        final_image_promo = composite.convert("RGB")
+                        logger.info(f"   ✅ Imagem composta e convertida para RGB")
                     else:
-                        final_image_promo = base_image.copy()
+                        final_image_promo = base_image.convert("RGB")
+                        logger.info(f"   ✅ Imagem convertida para RGB diretamente")
                     
                     draw_promo = ImageDraw.Draw(final_image_promo)
                     
