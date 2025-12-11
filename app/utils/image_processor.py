@@ -616,6 +616,9 @@ class ImageProcessor:
             # Se gerar dupla versão: processar NORMAL primeiro (todos produtos, sem tema)
             # Depois processar PROMOCIONAL (só produtos em oferta, com tema)
             
+            # Verificar se há produtos promocionais
+            has_promo = any(p['PrecoPromocional'] > 0 for p in normalized_products)
+            
             if generate_dual_version and base_image_no_theme:
                 logger.info(f"🎨 MODO DUPLO: Processando versão NORMAL (todos produtos, sem tema)...")
                 
@@ -717,55 +720,49 @@ class ImageProcessor:
                 
                 final_image = base_image.copy()
                 draw = ImageDraw.Draw(final_image)
-            
-            # Calcular espaço necessário e posições dos blocos
-            current_y_offset = height - config.PADDING_Y
-            
-            # Verificar se há produtos promocionais para calcular largura adequada
-            has_promo = any(p['PrecoPromocional'] > 0 for p in normalized_products)
-            
-            # Calcular largura dinâmica baseada no primeiro produto (todos terão a mesma largura)
-            product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0], is_promotional=has_promo)
-            logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px (promocional: {has_promo})")
-            
-            # Calcular regiões para extração de cor (dividir verticalmente pela quantidade de produtos)
-            num_products = len(normalized_products)
-            
-            for idx, product in enumerate(reversed(normalized_products)):
-                is_promotional = product['PrecoPromocional'] > 0
                 
-                # Calcular altura do bloco
-                block_height = self._calculate_block_height(draw, product)
+                # Calcular espaço necessário e posições dos blocos
+                current_y_offset = height - config.PADDING_Y
                 
-                # Posicionar bloco
-                block_y_start = current_y_offset - block_height
-                block_x_start = config.PADDING_X
+                # Calcular largura dinâmica baseada no primeiro produto (todos terão a mesma largura)
+                product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0], is_promotional=has_promo)
+                logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px (promocional: {has_promo})")
                 
-                # Desenhar bloco com cores padrão (preto ou vermelho se promoção)
-                self._draw_product_block(
-                    draw,
-                    product,
-                    block_x_start,
-                    block_y_start,
-                    product_block_width,
-                    block_height,
-                    is_promotional
-                )
-                
-                # Desenhar flag "ESGOTADO" se necessário
-                if product['Esgotado']:
-                    final_image = self._draw_esgotado_flag(
-                        final_image,
+                for idx, product in enumerate(reversed(normalized_products)):
+                    is_promotional = product['PrecoPromocional'] > 0
+                    
+                    # Calcular altura do bloco
+                    block_height = self._calculate_block_height(draw, product)
+                    
+                    # Posicionar bloco
+                    block_y_start = current_y_offset - block_height
+                    block_x_start = config.PADDING_X
+                    
+                    # Desenhar bloco com cores padrão (preto ou vermelho se promoção)
+                    self._draw_product_block(
+                        draw,
+                        product,
                         block_x_start,
                         block_y_start,
                         product_block_width,
-                        block_height
+                        block_height,
+                        is_promotional
                     )
+                    
+                    # Desenhar flag "ESGOTADO" se necessário
+                    if product['Esgotado']:
+                        final_image = self._draw_esgotado_flag(
+                            final_image,
+                            block_x_start,
+                            block_y_start,
+                            product_block_width,
+                            block_height
+                        )
+                    
+                    # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
+                    current_y_offset = block_y_start - config.BLOCK_SPACING
                 
-                # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
-                current_y_offset = block_y_start - config.BLOCK_SPACING
-                
-                # Salvar versão SIMPLES
+                # Salvar versão SIMPLES (FORA do loop - após processar TODOS os produtos)
                 output_filename = f"{task_id}.jpg"
                 final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename)
                 final_image_rgb = final_image.convert("RGB")
