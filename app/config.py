@@ -46,10 +46,10 @@ TEXT_SHADOW_OFFSET = 2  # pixels de deslocamento da sombra
 TEXT_SHADOW_COLOR = (0, 0, 0, 180)  # Preto semi-transparente
 
 # ============== Layout da Imagem ==============
-PADDING_X = int(os.getenv('PADDING_X', 21))  # Reduzido -5% (22 → 21)
+PADDING_X = int(os.getenv('PADDING_X', 12))  # Reduzido (21 → 12) - menos espaço lateral
 PADDING_Y = int(os.getenv('PADDING_Y', 90))  # Distância da borda inferior (80 → 90)
 BLOCK_SPACING = int(os.getenv('BLOCK_SPACING', 30))  # Espaçamento entre blocos de produtos
-LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.7))  # Reduzido espaçamento (1.98 → 1.7)
+LINE_HEIGHT_MULTIPLIER = float(os.getenv('LINE_HEIGHT_MULTIPLIER', 1.4))  # Reduzido (1.7 → 1.4) - linhas mais próximas
 PRODUCT_BLOCK_WIDTH_PERCENT = float(os.getenv('PRODUCT_BLOCK_WIDTH_PERCENT', 0.35))  # Reduzido -5% (0.37 → 0.35)
 
 # ============== Cores ==============

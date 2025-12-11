@@ -378,7 +378,7 @@ class ImageProcessor:
         logger.info(f"      ✅ Retângulo de fundo desenhado")
         
         # Inicializar cursor de posição Y para texto
-        text_cursor_y = block_y_start + 10  # Padding superior reduzido
+        text_cursor_y = block_y_start + 8  # Padding superior reduzido
         
         # Dados do produto
         referencia = product['Referencia']
@@ -531,7 +531,7 @@ class ImageProcessor:
         Returns:
             int: Altura total do bloco
         """
-        height = 10  # Padding superior reduzido
+        height = 8  # Padding superior reduzido
         
         # Descrição (pode ter 1 ou 2 linhas)
         reference_text = "Tam: ESGOTADO"
@@ -564,12 +564,12 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += 3 * (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             # Adicionar padding inferior para enquadrar última linha
-            height += 15
+            height += 8
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        return int(height + 10)  # Padding inferior reduzido
+        return int(height + 8)  # Padding inferior reduzido
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False):
         """
