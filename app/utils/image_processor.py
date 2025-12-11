@@ -367,11 +367,15 @@ class ImageProcessor:
         # Texto sempre branco
         text_color = config.COLOR_TEXT_WHITE
         
+        logger.info(f"      🔲 _draw_product_block: coords=({block_x_start},{block_y_start}) -> ({block_x_end},{block_y_end})")
+        logger.info(f"      🎨 bg_color={bg_color}, text_color={text_color}, is_promo={is_promotional}")
+        
         # Desenhar fundo do bloco
         draw.rectangle(
             [(block_x_start, block_y_start), (block_x_end, block_y_end)],
             fill=bg_color
         )
+        logger.info(f"      ✅ Retângulo de fundo desenhado")
         
         # Inicializar cursor de posição Y para texto
         text_cursor_y = block_y_start + 10  # Padding superior reduzido
@@ -677,6 +681,11 @@ class ImageProcessor:
                 else:
                     final_image_promo = base_image.copy()  # base_image já tem tema aplicado
                     draw_promo = ImageDraw.Draw(final_image_promo)
+                    
+                    # TESTE DE DEBUG: Desenhar um retângulo vermelho grande no canto
+                    logger.info(f"   🧪 TESTE: Desenhando retângulo de teste vermelho...")
+                    draw_promo.rectangle([(0, 0), (200, 200)], fill=(255, 0, 0, 255))
+                    logger.info(f"   🧪 TESTE: Retângulo desenhado em (0,0)-(200,200)")
                     
                     current_y_offset_promo = height - config.PADDING_Y
                     product_block_width_promo = self._calculate_dynamic_block_width(draw_promo, promo_products[0], is_promotional=True)
