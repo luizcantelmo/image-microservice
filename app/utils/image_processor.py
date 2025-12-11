@@ -653,6 +653,8 @@ class ImageProcessor:
                             product_block_width_normal,
                             block_height
                         )
+                        # Recriar draw após modificar imagem
+                        draw_normal = ImageDraw.Draw(final_image_normal)
                     
                     current_y_offset_normal = block_y_start - config.BLOCK_SPACING
                 
@@ -680,11 +682,15 @@ class ImageProcessor:
                     product_block_width_promo = self._calculate_dynamic_block_width(draw_promo, promo_products[0], is_promotional=True)
                     
                     logger.info(f"   Processando {len(promo_products)} produto(s) promocional(is)")
+                    logger.info(f"   📐 Largura do bloco promocional: {product_block_width_promo}px")
+                    logger.info(f"   📏 Offset Y inicial: {current_y_offset_promo}px")
                     
                     for idx, product in enumerate(reversed(promo_products)):
                         block_height = self._calculate_block_height(draw_promo, product)
                         block_y_start = current_y_offset_promo - block_height
                         block_x_start = config.PADDING_X
+                        
+                        logger.info(f"   🎯 Desenhando produto {idx+1}: pos=({block_x_start}, {block_y_start}), altura={block_height}px")
                         
                         self._draw_product_block(
                             draw_promo,
@@ -696,6 +702,8 @@ class ImageProcessor:
                             True  # Sempre promocional
                         )
                         
+                        logger.info(f"   ✅ Bloco do produto {idx+1} desenhado")
+                        
                         if product['Esgotado']:
                             final_image_promo = self._draw_esgotado_flag(
                                 final_image_promo,
@@ -704,13 +712,17 @@ class ImageProcessor:
                                 product_block_width_promo,
                                 block_height
                             )
+                            # Recriar draw após modificar imagem
+                            draw_promo = ImageDraw.Draw(final_image_promo)
                         
                         current_y_offset_promo = block_y_start - config.BLOCK_SPACING
                     
                     # Salvar versão PROMOCIONAL
                     output_filename_promo = f"{task_id}.jpg"
                     final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_promo)
+                    logger.info(f"   📷 Imagem promo antes de converter: modo={final_image_promo.mode}, tamanho={final_image_promo.size}")
                     final_image_promo_rgb = final_image_promo.convert("RGB")
+                    logger.info(f"   📷 Imagem promo após converter: modo={final_image_promo_rgb.mode}, tamanho={final_image_promo_rgb.size}")
                     final_image_promo_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
                     logger.info(f"✅ Versão PROMOCIONAL salva: {final_path} ({len(promo_products)} produtos)")
                 
@@ -758,6 +770,8 @@ class ImageProcessor:
                             product_block_width,
                             block_height
                         )
+                        # Recriar draw após modificar imagem
+                        draw = ImageDraw.Draw(final_image)
                     
                     # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
                     current_y_offset = block_y_start - config.BLOCK_SPACING
