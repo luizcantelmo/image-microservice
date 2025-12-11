@@ -425,35 +425,35 @@ class ImageProcessor:
         
         # Seção de Preço (centralizado)
         if preco_promocional > 0:
-            # Linha 1: "DE R$XX,XX" (riscado) + "POR" na mesma linha
+            # Linha 1: "DE R$XX,XX" (riscado) + "POR" na mesma linha - fonte menor (description)
             de_text = f"DE {self._format_price_text(preco)}"
             por_text = "POR"
             
-            # Calcular larguras
-            de_bbox = self._calculate_text_bbox(draw, de_text, self.fonts['price'])
-            por_bbox = self._calculate_text_bbox(draw, por_text, self.fonts['price'])
+            # Calcular larguras usando fonte description (menor)
+            de_bbox = self._calculate_text_bbox(draw, de_text, self.fonts['description'])
+            por_bbox = self._calculate_text_bbox(draw, por_text, self.fonts['description'])
             de_width = de_bbox[2] - de_bbox[0]
             por_width = por_bbox[2] - por_bbox[0]
-            spacing = 15  # Espaço entre DE e POR
+            spacing = 10  # Espaço entre DE e POR
             total_width = de_width + spacing + por_width
             
             # Centralizar a linha completa
             line_x_start = block_x_start + (block_width - total_width) / 2
             
-            # Desenhar "DE R$XX,XX" (riscado)
-            self._draw_text_with_shadow(draw, (line_x_start, text_cursor_y), de_text, self.fonts['price'], text_color, shadow=is_promotional)
+            # Desenhar "DE R$XX,XX" (riscado) com fonte menor
+            self._draw_text_with_shadow(draw, (line_x_start, text_cursor_y), de_text, self.fonts['description'], text_color, shadow=is_promotional)
             
             # Desenhar linha riscada sobre "DE R$XX,XX"
-            strike_y = text_cursor_y + (de_bbox[3] - de_bbox[1]) / 2 - 2
+            strike_y = text_cursor_y + (de_bbox[3] - de_bbox[1]) / 2 - 1
             draw.line(
                 [(line_x_start, int(strike_y)), (line_x_start + de_width, int(strike_y))],
                 fill=text_color,
                 width=2
             )
             
-            # Desenhar "POR" ao lado
+            # Desenhar "POR" ao lado com fonte menor
             por_x = line_x_start + de_width + spacing
-            self._draw_text_with_shadow(draw, (por_x, text_cursor_y), por_text, self.fonts['price'], text_color, shadow=is_promotional)
+            self._draw_text_with_shadow(draw, (por_x, text_cursor_y), por_text, self.fonts['description'], text_color, shadow=is_promotional)
             
             text_cursor_y += (de_bbox[3] - de_bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
@@ -560,11 +560,16 @@ class ImageProcessor:
         
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
-            # 3 linhas de preço: "DE XX POR", "R$XX no cartão", "R$XX à vista"
-            bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += 3 * (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            # Linha 1: "DE XX POR" com fonte description (menor)
+            bbox_desc = self._calculate_text_bbox(draw, "X", self.fonts['description'])
+            height += (bbox_desc[3] - bbox_desc[1]) * config.LINE_HEIGHT_MULTIPLIER
+            
+            # Linhas 2 e 3: preços com fonte price (maior)
+            bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
+            height += 2 * (bbox_price[3] - bbox_price[1]) * config.LINE_HEIGHT_MULTIPLIER
+            
             # Adicionar padding inferior para enquadrar última linha
-            height += 8
+            height += 12
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
