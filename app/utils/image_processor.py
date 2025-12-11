@@ -679,12 +679,22 @@ class ImageProcessor:
                     logger.warning(f"⚠️ Nenhum produto promocional encontrado! Pulando versão promocional.")
                     final_path = normal_path  # Usar versão normal como padrão
                 else:
-                    final_image_promo = base_image.copy()  # base_image já tem tema aplicado
+                    # Converter base_image (RGBA) para RGB antes de desenhar
+                    # Isso evita problemas com composição alpha
+                    if base_image.mode == 'RGBA':
+                        logger.info(f"   🔄 Convertendo imagem RGBA para RGB antes de desenhar...")
+                        base_rgb = Image.new("RGB", base_image.size, (255, 255, 255))
+                        base_rgb.paste(base_image, mask=base_image.split()[3])
+                        final_image_promo = base_rgb
+                        logger.info(f"   ✅ Conversão concluída: {final_image_promo.mode}")
+                    else:
+                        final_image_promo = base_image.copy()
+                    
                     draw_promo = ImageDraw.Draw(final_image_promo)
                     
                     # TESTE DE DEBUG: Desenhar um retângulo vermelho grande no canto
                     logger.info(f"   🧪 TESTE: Desenhando retângulo de teste vermelho...")
-                    draw_promo.rectangle([(0, 0), (200, 200)], fill=(255, 0, 0, 255))
+                    draw_promo.rectangle([(0, 0), (200, 200)], fill=(255, 0, 0))
                     logger.info(f"   🧪 TESTE: Retângulo desenhado em (0,0)-(200,200)")
                     
                     current_y_offset_promo = height - config.PADDING_Y
@@ -729,10 +739,16 @@ class ImageProcessor:
                     # Salvar versão PROMOCIONAL
                     output_filename_promo = f"{task_id}.jpg"
                     final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_promo)
-                    logger.info(f"   📷 Imagem promo antes de converter: modo={final_image_promo.mode}, tamanho={final_image_promo.size}")
-                    final_image_promo_rgb = final_image_promo.convert("RGB")
-                    logger.info(f"   📷 Imagem promo após converter: modo={final_image_promo_rgb.mode}, tamanho={final_image_promo_rgb.size}")
-                    final_image_promo_rgb.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
+                    logger.info(f"   📷 Imagem promo antes de salvar: modo={final_image_promo.mode}, tamanho={final_image_promo.size}")
+                    
+                    # Se ainda for RGBA (não deveria), converter para RGB
+                    if final_image_promo.mode == 'RGBA':
+                        rgb_image = Image.new("RGB", final_image_promo.size, (255, 255, 255))
+                        rgb_image.paste(final_image_promo, mask=final_image_promo.split()[3])
+                        final_image_promo = rgb_image
+                    
+                    logger.info(f"   📷 Salvando imagem: modo={final_image_promo.mode}")
+                    final_image_promo.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
                     logger.info(f"✅ Versão PROMOCIONAL salva: {final_path} ({len(promo_products)} produtos)")
                 
             else:
