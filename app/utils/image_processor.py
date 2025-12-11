@@ -742,7 +742,12 @@ class ImageProcessor:
                     # Salvar versão PROMOCIONAL
                     output_filename_promo = f"{task_id}.jpg"
                     final_path = os.path.join(config.TEMP_IMAGES_DIR, output_filename_promo)
-                    logger.info(f"   📷 Imagem promo antes de salvar: modo={final_image_promo.mode}, tamanho={final_image_promo.size}")
+                    logger.info(f"   📷 [v2.1] Imagem promo antes de salvar: modo={final_image_promo.mode}, tamanho={final_image_promo.size}")
+                    
+                    # DEBUG: Salvar uma cópia de debug para verificar se a imagem está correta
+                    debug_path = os.path.join(config.TEMP_IMAGES_DIR, f"DEBUG_{task_id}.jpg")
+                    final_image_promo.save(debug_path, "JPEG", quality=95)
+                    logger.info(f"   🐞 DEBUG: Imagem de debug salva em: {debug_path}")
                     
                     # Se ainda for RGBA (não deveria), converter para RGB
                     if final_image_promo.mode == 'RGBA':
@@ -750,9 +755,16 @@ class ImageProcessor:
                         rgb_image.paste(final_image_promo, mask=final_image_promo.split()[3])
                         final_image_promo = rgb_image
                     
-                    logger.info(f"   📷 Salvando imagem: modo={final_image_promo.mode}")
+                    logger.info(f"   📷 [v2.1] Salvando imagem final: modo={final_image_promo.mode}, path={final_path}")
                     final_image_promo.save(final_path, "JPEG", quality=config.OUTPUT_IMAGE_QUALITY)
-                    logger.info(f"✅ Versão PROMOCIONAL salva: {final_path} ({len(promo_products)} produtos)")
+                    
+                    # Verificar se o arquivo foi salvo corretamente
+                    import os as os_check
+                    if os_check.path.exists(final_path):
+                        file_size = os_check.path.getsize(final_path)
+                        logger.info(f"✅ [v2.1] Versão PROMOCIONAL salva: {final_path} (tamanho: {file_size} bytes)")
+                    else:
+                        logger.error(f"❌ ERRO: Arquivo não foi salvo: {final_path}")
                 
             else:
                 # MODO SIMPLES: Processar normalmente com TODOS os produtos
