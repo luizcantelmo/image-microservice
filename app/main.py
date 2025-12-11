@@ -224,8 +224,13 @@ def serve_image(filename):
     - Limpa o status da tarefa
     """
     
-    task_id_from_filename = filename.replace('.jpg', '')
+    # Extrair task_id do filename, removendo sufixos como _normal
+    task_id_from_filename = filename.replace('.jpg', '').replace('_normal', '')
+    is_normal_version = '_normal' in filename
+    
     status_data = task_manager.get_task_status(task_id_from_filename)
+    
+    logger.info(f"[v2.2] Servindo arquivo: {filename}, task_id: {task_id_from_filename}, is_normal: {is_normal_version}")
     
     # Verificar status
     if status_data["status"] == "PROCESSING" or status_data["status"] == "PENDING":
@@ -241,7 +246,19 @@ def serve_image(filename):
             "error": "Imagem não está pronta ou não existe"
         }), 404
     
-    file_path = status_data['final_path']
+    # Escolher o caminho correto baseado na versão solicitada
+    if is_normal_version:
+        # Versão normal solicitada
+        file_path = status_data.get('normal_path')
+        if not file_path:
+            # Se não existe versão normal separada, usar o final_path principal
+            file_path = status_data['final_path']
+            logger.info(f"[v2.2] Versão normal não encontrada, usando final_path")
+    else:
+        # Versão promocional/padrão
+        file_path = status_data['final_path']
+    
+    logger.info(f"[v2.2] Caminho escolhido: {file_path}")
     
     # Verificar se arquivo existe
     if not os.path.exists(file_path):
@@ -251,24 +268,44 @@ def serve_image(filename):
             "error": "Arquivo não encontrado"
         }), 404
     
-    logger.info(f"Servindo imagem: {filename}")
+    # Extrair nome do arquivo do caminho
+    actual_filename = os.path.basename(file_path)
+    logger.info(f"[v2.2] Servindo imagem: {actual_filename} (solicitado: {filename})")
+    
+    # Verificar se existe versão dual (normal + promo)
+    has_dual_version = status_data.get('normal_path') is not None
     
     @after_this_request
     def cleanup_after_serve(response):
         """Remove a imagem e limpa o status após servir"""
         try:
+            # Remover o arquivo que foi servido
             if os.path.exists(file_path):
                 os.remove(file_path)
-                logger.info(f"Arquivo temporário removido: {file_path}")
+                logger.info(f"[v2.2] Arquivo servido removido: {file_path}")
             
-            task_manager.delete_task_status(task_id_from_filename)
-            logger.info(f"Status da tarefa removido: {task_id_from_filename}")
+            # Se tem versão dual, não deletar o status ainda - aguardar segunda requisição
+            if has_dual_version:
+                # Verificar se ambos os arquivos foram servidos
+                normal_exists = status_data.get('normal_path') and os.path.exists(status_data['normal_path'])
+                promo_exists = status_data.get('final_path') and os.path.exists(status_data['final_path'])
+                
+                if not normal_exists and not promo_exists:
+                    # Ambos foram servidos, pode limpar o status
+                    task_manager.delete_task_status(task_id_from_filename)
+                    logger.info(f"[v2.2] Status da tarefa removido (dual completo): {task_id_from_filename}")
+                else:
+                    logger.info(f"[v2.2] Aguardando segunda requisição (normal={normal_exists}, promo={promo_exists})")
+            else:
+                # Versão única, pode limpar o status
+                task_manager.delete_task_status(task_id_from_filename)
+                logger.info(f"[v2.2] Status da tarefa removido: {task_id_from_filename}")
         except Exception as e:
             logger.error(f"Erro ao limpar arquivo/status {task_id_from_filename}: {e}")
         
         return response
     
-    return send_from_directory(config.TEMP_IMAGES_DIR, filename, mimetype='image/jpeg')
+    return send_from_directory(config.TEMP_IMAGES_DIR, actual_filename, mimetype='image/jpeg')
 
 @app.route('/api/v1/tasks', methods=['GET'])
 @error_handler
