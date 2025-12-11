@@ -425,31 +425,48 @@ class ImageProcessor:
         
         # Seção de Preço (centralizado)
         if preco_promocional > 0:
-            # Preço "DE" (riscado)
+            # Linha 1: "DE R$XX,XX" (riscado) + "POR" na mesma linha
             de_text = f"DE {self._format_price_text(preco)}"
-            bbox = self._calculate_text_bbox(draw, de_text, self.fonts['price'])
-            text_width = bbox[2] - bbox[0]
-            text_x = block_x_start + (block_width - text_width) / 2
-            self._draw_text_with_shadow(draw, (text_x, text_cursor_y), de_text, self.fonts['price'], text_color, shadow=is_promotional)
+            por_text = "POR"
             
-            # Desenhar linha riscada
-            strike_y = text_cursor_y + (bbox[3] - bbox[1]) / 2 - 2
+            # Calcular larguras
+            de_bbox = self._calculate_text_bbox(draw, de_text, self.fonts['price'])
+            por_bbox = self._calculate_text_bbox(draw, por_text, self.fonts['price'])
+            de_width = de_bbox[2] - de_bbox[0]
+            por_width = por_bbox[2] - por_bbox[0]
+            spacing = 15  # Espaço entre DE e POR
+            total_width = de_width + spacing + por_width
+            
+            # Centralizar a linha completa
+            line_x_start = block_x_start + (block_width - total_width) / 2
+            
+            # Desenhar "DE R$XX,XX" (riscado)
+            self._draw_text_with_shadow(draw, (line_x_start, text_cursor_y), de_text, self.fonts['price'], text_color, shadow=is_promotional)
+            
+            # Desenhar linha riscada sobre "DE R$XX,XX"
+            strike_y = text_cursor_y + (de_bbox[3] - de_bbox[1]) / 2 - 2
             draw.line(
-                [(text_x, int(strike_y)), (text_x + text_width, int(strike_y))],
+                [(line_x_start, int(strike_y)), (line_x_start + de_width, int(strike_y))],
                 fill=text_color,
                 width=2
             )
-            text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
-            # Preço promocional (no cartão)
-            promo_text = f"POR {self._format_price_text(preco_promocional)} no cartão"
+            # Desenhar "POR" ao lado
+            por_x = line_x_start + de_width + spacing
+            self._draw_text_with_shadow(draw, (por_x, text_cursor_y), por_text, self.fonts['price'], text_color, shadow=is_promotional)
+            
+            text_cursor_y += (de_bbox[3] - de_bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            
+            # Linha 2: Preço promocional (no cartão)
+            promo_text = f"{self._format_price_text(preco_promocional)} no cartão"
             bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
             text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
             
-            # Preço à vista
+            # Linha 3: Preço à vista
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
-                draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
+                bbox = draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
+                text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         else:
             # Preço normal
             price_text = self._format_price_text(preco)
@@ -543,9 +560,11 @@ class ImageProcessor:
         
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
-            # 3 linhas de preço
+            # 3 linhas de preço: "DE XX POR", "R$XX no cartão", "R$XX à vista"
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += 3 * (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            # Adicionar padding inferior para enquadrar última linha
+            height += 15
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
@@ -694,11 +713,6 @@ class ImageProcessor:
                         logger.info(f"   ✅ Imagem convertida para RGB diretamente")
                     
                     draw_promo = ImageDraw.Draw(final_image_promo)
-                    
-                    # TESTE DE DEBUG: Desenhar um retângulo vermelho grande no canto
-                    logger.info(f"   🧪 TESTE: Desenhando retângulo de teste vermelho...")
-                    draw_promo.rectangle([(0, 0), (200, 200)], fill=(255, 0, 0))
-                    logger.info(f"   🧪 TESTE: Retângulo desenhado em (0,0)-(200,200)")
                     
                     current_y_offset_promo = height - config.PADDING_Y
                     product_block_width_promo = self._calculate_dynamic_block_width(draw_promo, promo_products[0], is_promotional=True)
