@@ -74,6 +74,37 @@ class ImageProcessor:
             logger.error(f"Erro ao baixar imagem {url}: {e}")
             raise
     
+    def _format_numeracao_utilizada(self, numeracao_raw):
+        """
+        Formata a numeração utilizada, removendo duplicações como "52 (52)" -> "52"
+        
+        Args:
+            numeracao_raw (str): Numeração original (pode ser "G3 (52/54)" ou "52 (52)")
+        
+        Returns:
+            str: Numeração formatada sem duplicação
+        """
+        import re
+        
+        # Se não tem parênteses, retorna como está
+        if '(' not in numeracao_raw:
+            return numeracao_raw
+        
+        # Extrair parte antes e dentro dos parênteses
+        match = re.match(r'^(.+?)\s*\((.+?)\)$', numeracao_raw.strip())
+        if not match:
+            return numeracao_raw
+        
+        antes = match.group(1).strip()
+        dentro = match.group(2).strip()
+        
+        # Se são iguais (ex: "52 (52)"), retorna apenas um
+        if antes == dentro:
+            return antes
+        
+        # Se diferentes (ex: "G3 (52/54)"), mantém o formato original
+        return numeracao_raw
+    
     def _apply_theme(self, base_image, theme_image):
         """
         Aplica tema na imagem base
@@ -342,8 +373,9 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
             max_width = max(max_width, bbox[2] - bbox[0])
         
-        # 4. Usei (numeração utilizada)
-        usei_text = f"Usei: {product['NumeracaoUtilizada']}"
+        # 4. Usei (numeração utilizada) - formatada
+        numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
+        usei_text = f"Usei: {numeracao_formatada}"
         bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
         max_width = max(max_width, bbox[2] - bbox[0])
         
@@ -482,7 +514,10 @@ class ImageProcessor:
         preco_promocional = product['PrecoPromocional']
         preco_promocional_a_vista = product['PrecoPromocionalAVista']
         tamanhos_disponiveis = product['TamanhosDisponiveis']
-        numeracao_utilizada = product['NumeracaoUtilizada']
+        numeracao_utilizada_raw = product['NumeracaoUtilizada']
+        
+        # Formatar numeração utilizada - remover duplicação tipo "52 (52)"
+        numeracao_utilizada = self._format_numeracao_utilizada(numeracao_utilizada_raw)
         
         # Helper para centralizar texto (com sombra se promocional)
         def draw_centered_text(text, y_pos, font, use_shadow=is_promotional):
@@ -648,8 +683,9 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
-        # Usei (numeração utilizada)
-        usei_text = f"Usei: {product['NumeracaoUtilizada']}"
+        # Usei (numeração utilizada) - formatada
+        numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
+        usei_text = f"Usei: {numeracao_formatada}"
         bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
         height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
         
@@ -664,7 +700,7 @@ class ImageProcessor:
             height += 2 * (bbox_price[3] - bbox_price[1]) * config.LINE_HEIGHT_MULTIPLIER
             
             # Adicionar padding inferior para enquadrar última linha
-            height += 12
+            height += 20
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
