@@ -685,34 +685,41 @@ class ImageProcessor:
         
         # Seção de Preço (centralizado)
         if preco_promocional > 0:
-            # Linha 1: "DE R$XX,XX" (riscado) + "POR" na mesma linha - fonte menor (description)
-            de_text = f"DE {self._format_price_text(preco)}"
+            # Linha 1: "DE" + "R$XX,XX" (riscado) + "POR" na mesma linha - fonte menor (description)
+            de_text = "DE"
+            preco_antigo_text = self._format_price_text(preco)
             por_text = "POR"
             
             # Calcular larguras usando fonte description (menor)
             de_bbox = self._calculate_text_bbox(draw, de_text, self.fonts['description'])
+            preco_antigo_bbox = self._calculate_text_bbox(draw, preco_antigo_text, self.fonts['description'])
             por_bbox = self._calculate_text_bbox(draw, por_text, self.fonts['description'])
             de_width = de_bbox[2] - de_bbox[0]
+            preco_antigo_width = preco_antigo_bbox[2] - preco_antigo_bbox[0]
             por_width = por_bbox[2] - por_bbox[0]
-            spacing = 10  # Espaço entre DE e POR
-            total_width = de_width + spacing + por_width
+            spacing = 6  # Espaço entre palavras
+            total_width = de_width + spacing + preco_antigo_width + spacing + por_width
             
             # Centralizar a linha completa
             line_x_start = block_x_start + (block_width - total_width) / 2
             
-            # Desenhar "DE R$XX,XX" (riscado) com fonte menor
+            # Desenhar "DE" (sem risco)
             self._draw_text_with_shadow(draw, (line_x_start, text_cursor_y), de_text, self.fonts['description'], text_color, shadow=is_promotional)
             
-            # Desenhar linha riscada sobre "DE R$XX,XX"
-            strike_y = text_cursor_y + (de_bbox[3] - de_bbox[1]) / 2 - 1
+            # Desenhar "R$XX,XX" (com risco) - posição após "DE"
+            preco_x = line_x_start + de_width + spacing
+            self._draw_text_with_shadow(draw, (preco_x, text_cursor_y), preco_antigo_text, self.fonts['description'], text_color, shadow=is_promotional)
+            
+            # Desenhar linha riscada APENAS sobre o preço antigo
+            strike_y = text_cursor_y + (preco_antigo_bbox[3] - preco_antigo_bbox[1]) / 2 - 1
             draw.line(
-                [(line_x_start, int(strike_y)), (line_x_start + de_width, int(strike_y))],
+                [(preco_x, int(strike_y)), (preco_x + preco_antigo_width, int(strike_y))],
                 fill=text_color,
                 width=2
             )
             
-            # Desenhar "POR" ao lado com fonte menor
-            por_x = line_x_start + de_width + spacing
+            # Desenhar "POR" ao lado
+            por_x = preco_x + preco_antigo_width + spacing
             self._draw_text_with_shadow(draw, (por_x, text_cursor_y), por_text, self.fonts['description'], text_color, shadow=is_promotional)
             
             text_cursor_y += (de_bbox[3] - de_bbox[1]) * self._get_line_height()
