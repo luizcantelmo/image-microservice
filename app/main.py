@@ -116,8 +116,16 @@ def process_image_request():
     theme_url = data.get('theme_url')
     watermark_url = data.get('watermark_url')
     
+    # Buscar configurações dinâmicas (layout, cores, fonte, desconto)
+    layout_config = data.get('layout_config')
+    theme_config = data.get('theme_config')
+    desconto_a_vista = data.get('desconto_a_vista', 5)  # Default 5%
+    
     logger.info(f"🔍 DEBUG - theme_url no payload: {theme_url}")
     logger.info(f"🔍 DEBUG - watermark_url no payload: {watermark_url}")
+    logger.info(f"🔍 DEBUG - layout_config: {layout_config}")
+    logger.info(f"🔍 DEBUG - theme_config: {theme_config}")
+    logger.info(f"🔍 DEBUG - desconto_a_vista: {desconto_a_vista}%")
     
     # Priorizar watermark_url se theme_url não existir
     if not theme_url:
@@ -136,6 +144,11 @@ def process_image_request():
     logger.info(f"   Produtos: {len(products)}")
     logger.info(f"   URL Imagem Original: {original_image_url}")
     logger.info(f"   URL Tema/Watermark: {theme_url if theme_url else 'NENHUM'}")
+    if layout_config:
+        logger.info(f"   📐 Layout: blocoY={layout_config.get('blocoY')}, fontePreco={layout_config.get('fontePreco')}")
+    if theme_config:
+        logger.info(f"   🎨 Tema: fonte={theme_config.get('fonte')}")
+    logger.info(f"   💰 Desconto à vista: {desconto_a_vista}%")
     
     # Verificar se há produtos promocionais
     has_promo = any(p.get('PrecoPromocional', 0) > 0 for p in products)
@@ -148,10 +161,10 @@ def process_image_request():
     logger.info(f"========================================")
     
     # Iniciar processamento em background (thread)
-    # Passar flag de processamento duplo se houver promoção
+    # Passar flag de processamento duplo se houver promoção + configs dinâmicas
     thread = threading.Thread(
         target=image_processor.process_image,
-        args=(task_id, products, original_image_url, theme_url, has_promo),
+        args=(task_id, products, original_image_url, theme_url, has_promo, layout_config, theme_config, desconto_a_vista),
         daemon=True
     )
     thread.start()

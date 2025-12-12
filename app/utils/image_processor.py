@@ -19,6 +19,137 @@ class ImageProcessor:
     
     def __init__(self):
         self.fonts = self._load_fonts()
+        # Configs dinâmicas (serão sobrescritas a cada processo se recebidas)
+        self.layout_config = None
+        self.theme_config = None
+        self.desconto_a_vista = 5  # Default 5%
+    
+    def _get_font_path(self, font_name=None):
+        """Retorna o caminho da fonte baseado no nome"""
+        if font_name:
+            font_file = f"{font_name}.ttf"
+            font_path = os.path.join(config.FONTS_DIR, font_file)
+            if os.path.exists(font_path):
+                return font_path
+            # Tentar variações comuns
+            variations = [f"{font_name}bd.ttf", f"{font_name.lower()}.ttf"]
+            for var in variations:
+                var_path = os.path.join(config.FONTS_DIR, var)
+                if os.path.exists(var_path):
+                    return var_path
+        return config.DEFAULT_FONT_PATH
+    
+    def _load_fonts_with_config(self, layout_config=None, theme_config=None):
+        """Carrega fontes com tamanhos dinâmicos baseados em layout_config"""
+        fonts = {}
+        
+        # Determinar tamanhos das fontes
+        if layout_config:
+            desc_size = layout_config.get('fonteDescricao', config.FONT_DESCRIPTION_SIZE)
+            ref_size = layout_config.get('fonteReferencia', config.FONT_REF_SIZE_PROMO)
+            price_size = layout_config.get('fontePreco', config.FONT_PRICE_SIZE)
+            esgotado_size = layout_config.get('fonteEsgotado', config.FONT_ESGOTADO_SIZE)
+        else:
+            desc_size = config.FONT_DESCRIPTION_SIZE
+            ref_size = config.FONT_REF_SIZE_PROMO
+            price_size = config.FONT_PRICE_SIZE
+            esgotado_size = config.FONT_ESGOTADO_SIZE
+        
+        # Determinar fonte a usar
+        font_name = theme_config.get('fonte', 'arial') if theme_config else 'arial'
+        font_path = self._get_font_path(font_name)
+        
+        try:
+            if os.path.exists(font_path):
+                fonts['description'] = ImageFont.truetype(font_path, desc_size)
+                fonts['ref_promo'] = ImageFont.truetype(font_path, ref_size)
+                fonts['price'] = ImageFont.truetype(font_path, price_size)
+                fonts['esgotado'] = ImageFont.truetype(font_path, esgotado_size)
+                logger.info(f"Fontes carregadas: {font_path} (desc={desc_size}, price={price_size})")
+            else:
+                logger.warning(f"Fonte não encontrada em {font_path}. Usando fonte padrão.")
+                fonts['description'] = ImageFont.load_default()
+                fonts['ref_promo'] = ImageFont.load_default()
+                fonts['price'] = ImageFont.load_default()
+                fonts['esgotado'] = ImageFont.load_default()
+        except Exception as e:
+            logger.error(f"Erro ao carregar fontes: {e}. Usando fonte padrão.")
+            fonts['description'] = ImageFont.load_default()
+            fonts['ref_promo'] = ImageFont.load_default()
+            fonts['price'] = ImageFont.load_default()
+            fonts['esgotado'] = ImageFont.load_default()
+        
+        return fonts
+    
+    def _get_padding_x(self):
+        """Retorna padding X (usa layout_config se disponível)"""
+        if self.layout_config:
+            return self.layout_config.get('blocoPaddingX', config.PADDING_X)
+        return config.PADDING_X
+    
+    def _get_padding_y(self):
+        """Retorna padding Y - distância da borda inferior (usa layout_config se disponível)"""
+        if self.layout_config:
+            return self.layout_config.get('blocoY', config.PADDING_Y)
+        return config.PADDING_Y
+    
+    def _get_block_spacing(self):
+        """Retorna espaçamento entre blocos (usa layout_config se disponível)"""
+        if self.layout_config:
+            return self.layout_config.get('blocoEspacamento', config.BLOCK_SPACING)
+        return config.BLOCK_SPACING
+    
+    def _get_line_height(self):
+        """Retorna multiplicador de altura de linha (usa layout_config se disponível)"""
+        if self.layout_config:
+            return self.layout_config.get('linhaAltura', config.LINE_HEIGHT_MULTIPLIER)
+        return config.LINE_HEIGHT_MULTIPLIER
+    
+    def _parse_rgba(self, rgba_str):
+        """Converte string rgba(r, g, b, a) para tupla (r, g, b, a)"""
+        if not rgba_str or not isinstance(rgba_str, str):
+            return None
+        try:
+            # rgba(220, 20, 60, 0.86)
+            rgba_str = rgba_str.replace('rgba(', '').replace(')', '')
+            parts = [p.strip() for p in rgba_str.split(',')]
+            r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+            a = int(float(parts[3]) * 255)  # Converter 0-1 para 0-255
+            return (r, g, b, a)
+        except:
+            return None
+    
+    def _get_promo_bg_color(self):
+        """Retorna cor de fundo para promoção (usa theme_config se disponível)"""
+        if self.theme_config:
+            color = self._parse_rgba(self.theme_config.get('corFundoPromocao'))
+            if color:
+                return color
+        return config.COLOR_PROMO_BACKGROUND
+    
+    def _get_normal_bg_color(self):
+        """Retorna cor de fundo normal (usa theme_config se disponível)"""
+        if self.theme_config:
+            color = self._parse_rgba(self.theme_config.get('corFundoPadrao'))
+            if color:
+                return color
+        return config.COLOR_NORMAL_BACKGROUND
+    
+    def _get_promo_text_color(self):
+        """Retorna cor de texto para promoção (usa theme_config se disponível)"""
+        if self.theme_config:
+            color = self._parse_rgba(self.theme_config.get('corTextoPromocao'))
+            if color:
+                return color[:3]  # RGB sem alpha para texto
+        return config.COLOR_TEXT_WHITE
+    
+    def _get_normal_text_color(self):
+        """Retorna cor de texto normal (usa theme_config se disponível)"""
+        if self.theme_config:
+            color = self._parse_rgba(self.theme_config.get('corTextoPadrao'))
+            if color:
+                return color[:3]  # RGB sem alpha para texto
+        return config.COLOR_TEXT_WHITE
     
     def _load_fonts(self):
         """Carrega as fontes TrueType necessárias"""
@@ -465,7 +596,7 @@ class ImageProcessor:
             max_text_width = bbox[2] - bbox[0]
         
         # Adicionar padding (2x PADDING_X para esquerda e direita)
-        block_width = max_text_width + (2 * config.PADDING_X)
+        block_width = max_text_width + (2 * self._get_padding_x())
         
         return int(block_width)
     
@@ -485,14 +616,13 @@ class ImageProcessor:
         block_x_end = block_x_start + block_width
         block_y_end = block_y_start + block_total_height
         
-        # Cores fixas: preto para normal, vermelho para promoção
+        # Cores dinâmicas (do theme_config se disponível)
         if is_promotional:
-            bg_color = config.COLOR_PROMO_BACKGROUND
+            bg_color = self._get_promo_bg_color()
+            text_color = self._get_promo_text_color()
         else:
-            bg_color = config.COLOR_NORMAL_BACKGROUND
-        
-        # Texto sempre branco
-        text_color = config.COLOR_TEXT_WHITE
+            bg_color = self._get_normal_bg_color()
+            text_color = self._get_normal_text_color()
         
         logger.info(f"      🔲 _draw_product_block: coords=({block_x_start},{block_y_start}) -> ({block_x_end},{block_y_end})")
         logger.info(f"      🎨 bg_color={bg_color}, text_color={text_color}, is_promo={is_promotional}")
@@ -535,23 +665,23 @@ class ImageProcessor:
         description_lines = self._split_description(descricao_final, max_width, self.fonts['description'], draw)
         for line in description_lines:
             bbox = draw_centered_text(line, text_cursor_y, self.fonts['description'])
-            text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         
         # Texto: Referência
         ref_text = f"Ref {referencia}"
         bbox = draw_centered_text(ref_text, text_cursor_y, self.fonts['description'])
-        text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         
         # Texto: Tamanhos Disponíveis (não numeração utilizada!)
         if tamanhos_disponiveis and tamanhos_disponiveis != 'N/A':
             tam_text = f"Tam: {tamanhos_disponiveis}"
             bbox = draw_centered_text(tam_text, text_cursor_y, self.fonts['description'])
-            text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         
         # Texto: Usei (numeração utilizada)
         usei_text = f"Usei: {numeracao_utilizada}"
         bbox = draw_centered_text(usei_text, text_cursor_y, self.fonts['description'])
-        text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         
         # Seção de Preço (centralizado)
         if preco_promocional > 0:
@@ -585,18 +715,18 @@ class ImageProcessor:
             por_x = line_x_start + de_width + spacing
             self._draw_text_with_shadow(draw, (por_x, text_cursor_y), por_text, self.fonts['description'], text_color, shadow=is_promotional)
             
-            text_cursor_y += (de_bbox[3] - de_bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            text_cursor_y += (de_bbox[3] - de_bbox[1]) * self._get_line_height()
             
             # Linha 2: Preço promocional (no cartão)
             promo_text = f"{self._format_price_text(preco_promocional)} no cartão"
             bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
-            text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
             
             # Linha 3: Preço à vista
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
                 bbox = draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
-                text_cursor_y += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+                text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         else:
             # Preço normal
             price_text = self._format_price_text(preco)
@@ -662,6 +792,7 @@ class ImageProcessor:
             int: Altura total do bloco
         """
         height = 8  # Padding superior reduzido
+        line_height = self._get_line_height()
         
         # Descrição (pode ter 1 ou 2 linhas)
         reference_text = "Tam: ESGOTADO"
@@ -670,44 +801,44 @@ class ImageProcessor:
         
         description_lines = self._split_description(product['DescricaoFinal'], max_width, self.fonts['description'], draw)
         bbox = self._calculate_text_bbox(draw, "X", self.fonts['description'])
-        height += len(description_lines) * (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        height += len(description_lines) * (bbox[3] - bbox[1]) * line_height
         
         # Referência
         ref_text = f"Ref {product['Referencia']}"
         bbox = self._calculate_text_bbox(draw, ref_text, self.fonts['description'])
-        height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        height += (bbox[3] - bbox[1]) * line_height
         
         # Tamanhos disponíveis (se houver)
         if product['TamanhosDisponiveis'] and product['TamanhosDisponiveis'] != 'N/A':
             tam_text = f"Tam: {product['TamanhosDisponiveis']}"
             bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
-            height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            height += (bbox[3] - bbox[1]) * line_height
         
         # Usei (numeração utilizada) - formatada
         numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
         usei_text = f"Usei: {numeracao_formatada}"
         bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
-        height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+        height += (bbox[3] - bbox[1]) * line_height
         
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
             # Linha 1: "DE XX POR" com fonte description (menor)
             bbox_desc = self._calculate_text_bbox(draw, "X", self.fonts['description'])
-            height += (bbox_desc[3] - bbox_desc[1]) * config.LINE_HEIGHT_MULTIPLIER
+            height += (bbox_desc[3] - bbox_desc[1]) * line_height
             
             # Linhas 2 e 3: preços com fonte price (maior)
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += 2 * (bbox_price[3] - bbox_price[1]) * config.LINE_HEIGHT_MULTIPLIER
+            height += 2 * (bbox_price[3] - bbox_price[1]) * line_height
             
             # Adicionar padding inferior para enquadrar última linha
             height += 20
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1]) * config.LINE_HEIGHT_MULTIPLIER
+            height += (bbox[3] - bbox[1]) * line_height
         
         return int(height + 8)  # Padding inferior reduzido
     
-    def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False):
+    def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
         """
         Processa uma imagem com os dados de produtos
         Se generate_dual_version=True, processa 2 versões (com e sem tema)
@@ -718,10 +849,25 @@ class ImageProcessor:
             original_image_url (str): URL da imagem original
             theme_url (str): URL do tema (opcional)
             generate_dual_version (bool): Se deve gerar versão normal + promocional
+            layout_config (dict): Configurações de layout (blocoX, blocoY, fontes, etc.)
+            theme_config (dict): Configurações de tema (cores, fonte)
+            desconto_a_vista (float): Percentual de desconto à vista (default 5%)
         
         Returns:
             str: Caminho do arquivo salvo ou None em caso de erro
         """
+        # Aplicar configs dinâmicas
+        self.layout_config = layout_config
+        self.theme_config = theme_config
+        self.desconto_a_vista = desconto_a_vista or 5
+        
+        # Recarregar fontes com tamanhos dinâmicos se layout_config foi fornecido
+        if layout_config or theme_config:
+            self.fonts = self._load_fonts_with_config(layout_config, theme_config)
+            logger.info(f"   📐 Layout dinâmico aplicado: blocoY={self._get_padding_y()}, spacing={self._get_block_spacing()}")
+            logger.info(f"   🎨 Cores dinâmicas aplicadas: promo_bg={self._get_promo_bg_color()}")
+            logger.info(f"   💰 Desconto à vista: {self.desconto_a_vista}%")
+        
         logger.info(f"========================================")
         logger.info(f"🚀 Iniciando processamento de imagem")
         logger.info(f"   Task ID: {task_id}")
@@ -785,7 +931,7 @@ class ImageProcessor:
                 final_image_normal = base_image_no_theme.copy()
                 draw_normal = ImageDraw.Draw(final_image_normal)
                 
-                current_y_offset_normal = height - config.PADDING_Y
+                current_y_offset_normal = height - self._get_padding_y()
                 
                 # Calcular largura UNIFORME baseada em TODOS os produtos
                 product_block_width_normal = self._calculate_uniform_block_width(draw_normal, normalized_products, check_promotional=True)
@@ -795,7 +941,7 @@ class ImageProcessor:
                     is_promotional = product['PrecoPromocional'] > 0
                     block_height = self._calculate_block_height(draw_normal, product)
                     block_y_start = current_y_offset_normal - block_height
-                    block_x_start = config.PADDING_X
+                    block_x_start = self._get_padding_x()
                     
                     self._draw_product_block(
                         draw_normal,
@@ -818,7 +964,7 @@ class ImageProcessor:
                         # Recriar draw após modificar imagem
                         draw_normal = ImageDraw.Draw(final_image_normal)
                     
-                    current_y_offset_normal = block_y_start - config.BLOCK_SPACING
+                    current_y_offset_normal = block_y_start - self._get_block_spacing()
                 
                 # Salvar versão NORMAL
                 output_filename_normal = f"{task_id}_normal.jpg"
@@ -853,7 +999,7 @@ class ImageProcessor:
                     
                     draw_promo = ImageDraw.Draw(final_image_promo)
                     
-                    current_y_offset_promo = height - config.PADDING_Y
+                    current_y_offset_promo = height - self._get_padding_y()
                     
                     # Calcular largura UNIFORME baseada apenas nos produtos promocionais
                     product_block_width_promo = self._calculate_uniform_block_width(draw_promo, promo_products, check_promotional=True)
@@ -865,7 +1011,7 @@ class ImageProcessor:
                     for idx, product in enumerate(reversed(promo_products)):
                         block_height = self._calculate_block_height(draw_promo, product)
                         block_y_start = current_y_offset_promo - block_height
-                        block_x_start = config.PADDING_X
+                        block_x_start = self._get_padding_x()
                         
                         logger.info(f"   🎯 Desenhando produto {idx+1}: pos=({block_x_start}, {block_y_start}), altura={block_height}px")
                         
@@ -892,7 +1038,7 @@ class ImageProcessor:
                             # Recriar draw após modificar imagem
                             draw_promo = ImageDraw.Draw(final_image_promo)
                         
-                        current_y_offset_promo = block_y_start - config.BLOCK_SPACING
+                        current_y_offset_promo = block_y_start - self._get_block_spacing()
                     
                     # Salvar versão PROMOCIONAL
                     output_filename_promo = f"{task_id}.jpg"
@@ -929,7 +1075,7 @@ class ImageProcessor:
                 draw = ImageDraw.Draw(final_image)
                 
                 # Calcular espaço necessário e posições dos blocos
-                current_y_offset = height - config.PADDING_Y
+                current_y_offset = height - self._get_padding_y()
                 
                 # Calcular largura UNIFORME baseada em TODOS os produtos
                 product_block_width = self._calculate_uniform_block_width(draw, normalized_products, check_promotional=True)
@@ -943,7 +1089,7 @@ class ImageProcessor:
                     
                     # Posicionar bloco
                     block_y_start = current_y_offset - block_height
-                    block_x_start = config.PADDING_X
+                    block_x_start = self._get_padding_x()
                     
                     # Desenhar bloco com cores padrão (preto ou vermelho se promoção)
                     self._draw_product_block(
@@ -969,7 +1115,7 @@ class ImageProcessor:
                         draw = ImageDraw.Draw(final_image)
                     
                     # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
-                    current_y_offset = block_y_start - config.BLOCK_SPACING
+                    current_y_offset = block_y_start - self._get_block_spacing()
                 
                 # Salvar versão SIMPLES (FORA do loop - após processar TODOS os produtos)
                 output_filename = f"{task_id}.jpg"
