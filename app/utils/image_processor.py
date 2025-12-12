@@ -306,8 +306,103 @@ class ImageProcessor:
         
         return [line1, line2]
     
+    def _calculate_min_width_for_product(self, draw, product, is_promotional=False):
+        """
+        Calcula a largura MÍNIMA necessária para um produto específico,
+        baseada no texto mais largo de cada linha.
+        
+        Args:
+            draw: Objeto de desenho
+            product (dict): Dados do produto
+            is_promotional (bool): Se é um produto promocional
+        
+        Returns:
+            int: Largura mínima necessária em pixels (sem padding extra)
+        """
+        max_width = 0
+        
+        # 1. Descrição (pode ter 2 linhas)
+        reference_text = "Tam: ESGOTADO"
+        bbox_ref = self._calculate_text_bbox(draw, reference_text, self.fonts['description'])
+        max_desc_width = bbox_ref[2] - bbox_ref[0]
+        
+        description_lines = self._split_description(product['DescricaoFinal'], max_desc_width, self.fonts['description'], draw)
+        for line in description_lines:
+            bbox = self._calculate_text_bbox(draw, line, self.fonts['description'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+        
+        # 2. Referência
+        ref_text = f"Ref {product['Referencia']}"
+        bbox = self._calculate_text_bbox(draw, ref_text, self.fonts['description'])
+        max_width = max(max_width, bbox[2] - bbox[0])
+        
+        # 3. Tamanhos disponíveis
+        if product['TamanhosDisponiveis'] and product['TamanhosDisponiveis'] != 'N/A':
+            tam_text = f"Tam: {product['TamanhosDisponiveis']}"
+            bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+        
+        # 4. Usei (numeração utilizada)
+        usei_text = f"Usei: {product['NumeracaoUtilizada']}"
+        bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
+        max_width = max(max_width, bbox[2] - bbox[0])
+        
+        # 5. Preços
+        if is_promotional and product['PrecoPromocional'] > 0:
+            # DE R$XX,XX POR (fonte description)
+            de_por_text = f"DE {self._format_price_text(product['Preco'])} POR"
+            bbox = self._calculate_text_bbox(draw, de_por_text, self.fonts['description'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+            
+            # R$XX,XX no cartão (fonte price)
+            promo_text = f"{self._format_price_text(product['PrecoPromocional'])} no cartão"
+            bbox = self._calculate_text_bbox(draw, promo_text, self.fonts['price'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+            
+            # R$XX,XX à vista (fonte price)
+            if product['PrecoPromocionalAVista'] > 0:
+                vista_text = f"{self._format_price_text(product['PrecoPromocionalAVista'])} à vista"
+                bbox = self._calculate_text_bbox(draw, vista_text, self.fonts['price'])
+                max_width = max(max_width, bbox[2] - bbox[0])
+        else:
+            # Preço normal
+            price_text = self._format_price_text(product['Preco'])
+            bbox = self._calculate_text_bbox(draw, price_text, self.fonts['price'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+        
+        return int(max_width)
+    
+    def _calculate_uniform_block_width(self, draw, products, check_promotional=True):
+        """
+        Calcula a largura UNIFORME para todos os blocos de produtos.
+        Encontra a maior largura mínima necessária entre todos os produtos.
+        
+        Args:
+            draw: Objeto de desenho
+            products (list): Lista de produtos
+            check_promotional (bool): Se deve verificar se cada produto é promocional
+        
+        Returns:
+            int: Largura uniforme para todos os blocos (com pequeno padding)
+        """
+        max_width = 0
+        
+        for product in products:
+            is_promo = check_promotional and product['PrecoPromocional'] > 0
+            width = self._calculate_min_width_for_product(draw, product, is_promo)
+            max_width = max(max_width, width)
+        
+        # Adicionar apenas um pequeno padding (8px de cada lado)
+        MINIMAL_PADDING = 8
+        block_width = max_width + (2 * MINIMAL_PADDING)
+        
+        return int(block_width)
+    
     def _calculate_dynamic_block_width(self, draw, product, is_promotional=False):
         """
+        DEPRECATED: Mantido para compatibilidade.
+        Use _calculate_uniform_block_width para largura uniforme entre produtos.
+        
         Calcula a largura do bloco baseada no texto mais longo + padding
         Para produtos promocionais, considera "POR R$119,90 no cartão" como referência
         
@@ -655,7 +750,10 @@ class ImageProcessor:
                 draw_normal = ImageDraw.Draw(final_image_normal)
                 
                 current_y_offset_normal = height - config.PADDING_Y
-                product_block_width_normal = self._calculate_dynamic_block_width(draw_normal, normalized_products[0], is_promotional=has_promo)
+                
+                # Calcular largura UNIFORME baseada em TODOS os produtos
+                product_block_width_normal = self._calculate_uniform_block_width(draw_normal, normalized_products, check_promotional=True)
+                logger.info(f"📏 Largura uniforme calculada (NORMAL): {product_block_width_normal}px para {len(normalized_products)} produtos")
                 
                 for idx, product in enumerate(reversed(normalized_products)):
                     is_promotional = product['PrecoPromocional'] > 0
@@ -720,10 +818,12 @@ class ImageProcessor:
                     draw_promo = ImageDraw.Draw(final_image_promo)
                     
                     current_y_offset_promo = height - config.PADDING_Y
-                    product_block_width_promo = self._calculate_dynamic_block_width(draw_promo, promo_products[0], is_promotional=True)
+                    
+                    # Calcular largura UNIFORME baseada apenas nos produtos promocionais
+                    product_block_width_promo = self._calculate_uniform_block_width(draw_promo, promo_products, check_promotional=True)
                     
                     logger.info(f"   Processando {len(promo_products)} produto(s) promocional(is)")
-                    logger.info(f"   📐 Largura do bloco promocional: {product_block_width_promo}px")
+                    logger.info(f"   📏 Largura uniforme (PROMO): {product_block_width_promo}px")
                     logger.info(f"   📏 Offset Y inicial: {current_y_offset_promo}px")
                     
                     for idx, product in enumerate(reversed(promo_products)):
@@ -795,9 +895,9 @@ class ImageProcessor:
                 # Calcular espaço necessário e posições dos blocos
                 current_y_offset = height - config.PADDING_Y
                 
-                # Calcular largura dinâmica baseada no primeiro produto (todos terão a mesma largura)
-                product_block_width = self._calculate_dynamic_block_width(draw, normalized_products[0], is_promotional=has_promo)
-                logger.info(f"📐 Largura dinâmica do bloco calculada: {product_block_width}px (promocional: {has_promo})")
+                # Calcular largura UNIFORME baseada em TODOS os produtos
+                product_block_width = self._calculate_uniform_block_width(draw, normalized_products, check_promotional=True)
+                logger.info(f"📏 Largura uniforme calculada: {product_block_width}px para {len(normalized_products)} produtos")
                 
                 for idx, product in enumerate(reversed(normalized_products)):
                     is_promotional = product['PrecoPromocional'] > 0
