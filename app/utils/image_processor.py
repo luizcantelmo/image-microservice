@@ -851,26 +851,33 @@ class ImageProcessor:
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
             # Linha 1: "DE XX POR" com fonte description (menor)
-            bbox_desc = self._calculate_text_bbox(draw, "X", self.fonts['description'])
+            bbox_desc = self._calculate_text_bbox(draw, "DE R$99,90 POR", self.fonts['description'])
             height += (bbox_desc[3] - bbox_desc[1]) * line_height
             
-            # Linha 2: preço no cartão
-            bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
+            # Linha 2: preço no cartão (com fonte price)
+            bbox_price = self._calculate_text_bbox(draw, "R$69,90 no cartão", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista - apenas altura do texto, sem line_height
-            price_text_height = bbox_price[3] - bbox_price[1]
+            # Linha 3 (última): preço à vista (com fonte price)
+            bbox_vista = self._calculate_text_bbox(draw, "R$64,31 à vista", self.fonts['price'])
+            price_text_height = bbox_vista[3] - bbox_vista[1]
             height += price_text_height
         else:
             # Preço normal (última linha) - apenas altura do texto, sem line_height
-            bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
+            bbox = self._calculate_text_bbox(draw, "R$239,90", self.fonts['price'])
             price_text_height = bbox[3] - bbox[1]
             height += price_text_height
         
-        # Padding inferior + ajuste proporcional para compensar métricas da fonte
-        # As fontes têm espaço interno (descender) que aparece na borda inferior
-        # Adicionar ~40% da altura da fonte de preço para compensar
-        ajuste_metrica_fonte = price_text_height * 0.40
+        # Padding inferior + ajuste baseado nas métricas reais da fonte
+        # getmetrics() retorna (ascent, descent) - descent é o espaço abaixo da baseline
+        try:
+            ascent, descent = self.fonts['price'].getmetrics()
+            # O descent já representa o espaço real abaixo da baseline
+            ajuste_metrica_fonte = descent
+        except:
+            # Fallback se getmetrics não estiver disponível
+            ajuste_metrica_fonte = price_text_height * 0.3
+        
         height += padding_y_interno + ajuste_metrica_fonte
         return int(round(height))
     
