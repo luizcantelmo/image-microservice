@@ -869,8 +869,8 @@ class ImageProcessor:
         
         # Padding inferior + ajuste proporcional para compensar métricas da fonte
         # As fontes têm espaço interno (descender) que aparece na borda inferior
-        # Adicionar ~25% da altura da fonte de preço para compensar
-        ajuste_metrica_fonte = price_text_height * 0.25
+        # Adicionar ~40% da altura da fonte de preço para compensar
+        ajuste_metrica_fonte = price_text_height * 0.40
         height += padding_y_interno + ajuste_metrica_fonte
         return int(round(height))
     
