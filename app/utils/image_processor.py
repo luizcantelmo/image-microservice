@@ -745,13 +745,13 @@ class ImageProcessor:
             bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
             text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
             
-            # Linha 3: Preço à vista
+            # Linha 3: Preço à vista (última linha - não incrementa cursor)
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
-                bbox = draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
-                text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
+                draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
+                # Não incrementar text_cursor_y - é a última linha
         else:
-            # Preço normal
+            # Preço normal (última linha - não incrementa cursor)
             price_text = self._format_price_text(preco)
             draw_centered_text(price_text, text_cursor_y, self.fonts['price'])
     
@@ -859,12 +859,12 @@ class ImageProcessor:
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista - com line_height para manter consistência
-            height += (bbox_price[3] - bbox_price[1]) * line_height
+            # Linha 3 (última): preço à vista - SEM line_height (última linha)
+            height += (bbox_price[3] - bbox_price[1])
         else:
-            # Preço normal (última linha) - com line_height para manter consistência
+            # Preço normal (última linha) - SEM line_height (última linha)
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1]) * line_height
+            height += (bbox[3] - bbox[1])
         
         # Padding inferior (igual ao superior para simetria perfeita)
         height += padding_y_interno
