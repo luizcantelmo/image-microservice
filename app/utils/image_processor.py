@@ -93,6 +93,12 @@ class ImageProcessor:
             return self.layout_config.get('blocoX', config.PADDING_X)
         return config.PADDING_X
     
+    def _get_bloco_padding_y(self):
+        """Retorna padding Y interno do bloco (usa layout_config se disponível)"""
+        if self.layout_config:
+            return self.layout_config.get('blocoPaddingY', 8)
+        return 8  # Valor padrão original
+    
     def _get_padding_y(self):
         """Retorna padding Y - distância da borda inferior (usa layout_config se disponível)"""
         if self.layout_config:
@@ -640,8 +646,9 @@ class ImageProcessor:
         )
         logger.info(f"      ✅ Retângulo de fundo desenhado")
         
-        # Inicializar cursor de posição Y para texto
-        text_cursor_y = block_y_start + 8  # Padding superior reduzido
+        # Inicializar cursor de posição Y para texto (usa padding interno vertical)
+        padding_y_interno = self._get_bloco_padding_y()
+        text_cursor_y = block_y_start + padding_y_interno
         
         # Dados do produto
         referencia = product['Referencia']
@@ -804,7 +811,8 @@ class ImageProcessor:
         Returns:
             int: Altura total do bloco
         """
-        height = 8  # Padding superior reduzido
+        padding_y_interno = self._get_bloco_padding_y()
+        height = padding_y_interno  # Padding superior dinâmico
         line_height = self._get_line_height()
         
         # Descrição (pode ter 1 ou 2 linhas)
@@ -849,7 +857,7 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * line_height
         
-        return int(height + 8)  # Padding inferior reduzido
+        return int(height + self._get_bloco_padding_y())  # Padding inferior dinâmico
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
         """
@@ -878,6 +886,7 @@ class ImageProcessor:
         if layout_config or theme_config:
             self.fonts = self._load_fonts_with_config(layout_config, theme_config)
             logger.info(f"   📐 Layout dinâmico aplicado: blocoX={self._get_bloco_x()}, blocoY={self._get_padding_y()}, spacing={self._get_block_spacing()}")
+            logger.info(f"   📐 Padding interno: paddingX={self._get_padding_x()}, paddingY={self._get_bloco_padding_y()}")
             logger.info(f"   🎨 Cores dinâmicas aplicadas: promo_bg={self._get_promo_bg_color()}")
             logger.info(f"   💰 Desconto à vista: {self.desconto_a_vista}%")
         
