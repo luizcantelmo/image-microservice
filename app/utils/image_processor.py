@@ -745,16 +745,14 @@ class ImageProcessor:
             bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
             text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
             
-            # Linha 3: Preço à vista
+            # Linha 3: Preço à vista (última linha - não incrementa cursor)
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
-                bbox = draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
-                text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
+                draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
         else:
-            # Preço normal
+            # Preço normal (última linha - não incrementa cursor)
             price_text = self._format_price_text(preco)
-            bbox = draw_centered_text(price_text, text_cursor_y, self.fonts['price'])
-            text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
+            draw_centered_text(price_text, text_cursor_y, self.fonts['price'])
     
     def _draw_esgotado_flag(self, image, block_x_start, block_y_start, block_width, block_total_height):
         """
@@ -860,19 +858,15 @@ class ImageProcessor:
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista
-            height += (bbox_price[3] - bbox_price[1]) * line_height
-            # Compensar espaço extra do line_height da última linha
-            line_height_extra = (bbox_price[3] - bbox_price[1]) * (line_height - 1.0)
+            # Linha 3 (última): preço à vista - apenas altura do texto, sem line_height
+            height += (bbox_price[3] - bbox_price[1])
         else:
-            # Preço normal (última linha)
+            # Preço normal (última linha) - apenas altura do texto, sem line_height
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1]) * line_height
-            # Compensar espaço extra do line_height da última linha
-            line_height_extra = (bbox[3] - bbox[1]) * (line_height - 1.0)
+            height += (bbox[3] - bbox[1])
         
-        # Padding inferior (subtrair o espaço extra do line_height para simetria)
-        height += padding_y_interno - line_height_extra
+        # Padding inferior (igual ao superior para simetria)
+        height += padding_y_interno
         return int(round(height))
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
