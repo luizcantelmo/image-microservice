@@ -558,7 +558,7 @@ class ImageProcessor:
             check_promotional (bool): Se deve verificar se cada produto é promocional
         
         Returns:
-            int: Largura uniforme para todos os blocos (com pequeno padding)
+            int: Largura uniforme para todos os blocos (com padding horizontal interno)
         """
         max_width = 0
         
@@ -567,9 +567,10 @@ class ImageProcessor:
             width = self._calculate_min_width_for_product(draw, product, is_promo)
             max_width = max(max_width, width)
         
-        # Adicionar apenas um pequeno padding (8px de cada lado)
-        MINIMAL_PADDING = 8
-        block_width = max_width + (2 * MINIMAL_PADDING)
+        # Adicionar padding horizontal interno (blocoPaddingX de cada lado)
+        padding_x_interno = self._get_padding_x()
+        block_width = max_width + (2 * padding_x_interno)
+        logger.info(f"   📐 Largura bloco: texto={max_width}px + (2 * paddingX={padding_x_interno}) = {block_width}px")
         
         return int(block_width)
     
