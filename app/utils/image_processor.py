@@ -850,12 +850,16 @@ class ImageProcessor:
             bbox_desc = self._calculate_text_bbox(draw, "X", self.fonts['description'])
             height += (bbox_desc[3] - bbox_desc[1]) * line_height
             
-            # Linhas 2 e 3: preços com fonte price (maior)
+            # Linha 2: preço no cartão
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += 2 * (bbox_price[3] - bbox_price[1]) * line_height
+            height += (bbox_price[3] - bbox_price[1]) * line_height
+            
+            # Linha 3 (última): preço à vista - sem multiplicador line_height extra
+            height += (bbox_price[3] - bbox_price[1])  # Apenas altura do texto
         else:
+            # Preço normal (última linha) - sem multiplicador line_height extra
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1]) * line_height
+            height += (bbox[3] - bbox[1])  # Apenas altura do texto
         
         return int(height + self._get_bloco_padding_y())  # Padding inferior dinâmico
     
