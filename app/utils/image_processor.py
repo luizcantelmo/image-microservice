@@ -815,8 +815,10 @@ class ImageProcessor:
             int: Altura total do bloco
         """
         padding_y_interno = self._get_bloco_padding_y()
-        height = padding_y_interno  # Padding superior dinâmico
         line_height = self._get_line_height()
+        
+        # Iniciar com padding superior
+        height = padding_y_interno
         
         # Descrição (pode ter 1 ou 2 linhas)
         reference_text = "Tam: ESGOTADO"
@@ -825,7 +827,10 @@ class ImageProcessor:
         
         description_lines = self._split_description(product['DescricaoFinal'], max_width, self.fonts['description'], draw)
         bbox = self._calculate_text_bbox(draw, "X", self.fonts['description'])
-        height += len(description_lines) * (bbox[3] - bbox[1]) * line_height
+        text_height = bbox[3] - bbox[1]
+        
+        # Todas as linhas de descrição
+        height += len(description_lines) * text_height * line_height
         
         # Referência
         ref_text = f"Ref {product['Referencia']}"
@@ -854,14 +859,23 @@ class ImageProcessor:
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista - sem multiplicador line_height extra
-            height += (bbox_price[3] - bbox_price[1])  # Apenas altura do texto
+            # Linha 3 (última): preço à vista
+            height += (bbox_price[3] - bbox_price[1]) * line_height
         else:
-            # Preço normal (última linha) - sem multiplicador line_height extra
+            # Preço normal
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1])  # Apenas altura do texto
+            height += (bbox[3] - bbox[1]) * line_height
         
-        return int(height + self._get_bloco_padding_y())  # Padding inferior dinâmico
+        # Padding inferior (igual ao superior para simetria)
+        height += padding_y_interno
+        
+        # Subtrair o espaço extra do line_height da última linha (pois não há linha depois)
+        # O line_height adiciona (line_height - 1) * altura extra após cada linha
+        # Na última linha, esse espaço não é necessário
+        extra_space = (line_height - 1) * (bbox_price[3] - bbox_price[1] if product['PrecoPromocional'] > 0 else bbox[3] - bbox[1])
+        height -= extra_space
+        
+        return int(height)
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
         """
