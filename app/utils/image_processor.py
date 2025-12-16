@@ -859,21 +859,15 @@ class ImageProcessor:
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista
-            height += (bbox_price[3] - bbox_price[1]) * line_height
+            # Linha 3 (última): preço à vista - apenas altura sem line_height extra
+            height += (bbox_price[3] - bbox_price[1])
         else:
-            # Preço normal
+            # Preço normal (última linha) - apenas altura sem line_height extra
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1]) * line_height
+            height += (bbox[3] - bbox[1])
         
         # Padding inferior (igual ao superior para simetria)
         height += padding_y_interno
-        
-        # Subtrair o espaço extra do line_height da última linha (pois não há linha depois)
-        # O line_height adiciona (line_height - 1) * altura extra após cada linha
-        # Na última linha, esse espaço não é necessário
-        extra_space = (line_height - 1) * (bbox_price[3] - bbox_price[1] if product['PrecoPromocional'] > 0 else bbox[3] - bbox[1])
-        height -= extra_space
         
         return int(height)
     
