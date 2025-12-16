@@ -608,7 +608,9 @@ class ImageProcessor:
             max_text_width = bbox[2] - bbox[0]
         
         # Adicionar padding (2x PADDING_X para esquerda e direita)
-        block_width = max_text_width + (2 * self._get_padding_x())
+        padding_x_interno = self._get_padding_x()
+        block_width = max_text_width + (2 * padding_x_interno)
+        logger.info(f"   📐 Largura bloco: texto={max_text_width}px + (2 * paddingX={padding_x_interno}) = {block_width}px")
         
         return int(block_width)
     
