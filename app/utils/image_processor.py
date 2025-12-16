@@ -990,16 +990,7 @@ class ImageProcessor:
                         is_promotional
                     )
                     
-                    if product['Esgotado']:
-                        final_image_normal = self._draw_esgotado_flag(
-                            final_image_normal,
-                            block_x_start,
-                            block_y_start,
-                            product_block_width_normal,
-                            block_height
-                        )
-                        # Recriar draw após modificar imagem
-                        draw_normal = ImageDraw.Draw(final_image_normal)
+                    # Faixa ESGOTADO removida - mantida apenas a indicação "Tam: ESGOTADO" no texto
                     
                     current_y_offset_normal = block_y_start - self._get_block_spacing()
                 
@@ -1064,16 +1055,7 @@ class ImageProcessor:
                         
                         logger.info(f"   ✅ Bloco do produto {idx+1} desenhado")
                         
-                        if product['Esgotado']:
-                            final_image_promo = self._draw_esgotado_flag(
-                                final_image_promo,
-                                block_x_start,
-                                block_y_start,
-                                product_block_width_promo,
-                                block_height
-                            )
-                            # Recriar draw após modificar imagem
-                            draw_promo = ImageDraw.Draw(final_image_promo)
+                        # Faixa ESGOTADO removida - mantida apenas a indicação "Tam: ESGOTADO" no texto
                         
                         current_y_offset_promo = block_y_start - self._get_block_spacing()
                     
@@ -1139,17 +1121,7 @@ class ImageProcessor:
                         is_promotional
                     )
                     
-                    # Desenhar flag "ESGOTADO" se necessário
-                    if product['Esgotado']:
-                        final_image = self._draw_esgotado_flag(
-                            final_image,
-                            block_x_start,
-                            block_y_start,
-                            product_block_width,
-                            block_height
-                        )
-                        # Recriar draw após modificar imagem
-                        draw = ImageDraw.Draw(final_image)
+                    # Faixa ESGOTADO removida - mantida apenas a indicação "Tam: ESGOTADO" no texto
                     
                     # Atualizar offset para próximo bloco (usar BLOCK_SPACING entre blocos)
                     current_y_offset = block_y_start - self._get_block_spacing()
