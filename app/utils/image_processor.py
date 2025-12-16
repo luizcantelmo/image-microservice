@@ -859,12 +859,12 @@ class ImageProcessor:
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
-            # Linha 3 (última): preço à vista - apenas altura sem line_height extra
-            height += (bbox_price[3] - bbox_price[1])
+            # Linha 3 (última): preço à vista - com line_height para manter consistência
+            height += (bbox_price[3] - bbox_price[1]) * line_height
         else:
-            # Preço normal (última linha) - apenas altura sem line_height extra
+            # Preço normal (última linha) - com line_height para manter consistência
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1])
+            height += (bbox[3] - bbox[1]) * line_height
         
         # Padding inferior (igual ao superior para simetria)
         height += padding_y_interno
