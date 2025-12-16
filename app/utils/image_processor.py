@@ -82,9 +82,15 @@ class ImageProcessor:
         return fonts
     
     def _get_padding_x(self):
-        """Retorna padding X (usa layout_config se disponível)"""
+        """Retorna padding X interno do bloco (usa layout_config se disponível)"""
         if self.layout_config:
             return self.layout_config.get('blocoPaddingX', config.PADDING_X)
+        return config.PADDING_X
+    
+    def _get_bloco_x(self):
+        """Retorna posição X do início do bloco (distância da borda esquerda)"""
+        if self.layout_config:
+            return self.layout_config.get('blocoX', config.PADDING_X)
         return config.PADDING_X
     
     def _get_padding_y(self):
@@ -871,7 +877,7 @@ class ImageProcessor:
         # Recarregar fontes com tamanhos dinâmicos se layout_config foi fornecido
         if layout_config or theme_config:
             self.fonts = self._load_fonts_with_config(layout_config, theme_config)
-            logger.info(f"   📐 Layout dinâmico aplicado: blocoY={self._get_padding_y()}, spacing={self._get_block_spacing()}")
+            logger.info(f"   📐 Layout dinâmico aplicado: blocoX={self._get_bloco_x()}, blocoY={self._get_padding_y()}, spacing={self._get_block_spacing()}")
             logger.info(f"   🎨 Cores dinâmicas aplicadas: promo_bg={self._get_promo_bg_color()}")
             logger.info(f"   💰 Desconto à vista: {self.desconto_a_vista}%")
         
@@ -948,7 +954,7 @@ class ImageProcessor:
                     is_promotional = product['PrecoPromocional'] > 0
                     block_height = self._calculate_block_height(draw_normal, product)
                     block_y_start = current_y_offset_normal - block_height
-                    block_x_start = self._get_padding_x()
+                    block_x_start = self._get_bloco_x()
                     
                     self._draw_product_block(
                         draw_normal,
@@ -1018,7 +1024,7 @@ class ImageProcessor:
                     for idx, product in enumerate(reversed(promo_products)):
                         block_height = self._calculate_block_height(draw_promo, product)
                         block_y_start = current_y_offset_promo - block_height
-                        block_x_start = self._get_padding_x()
+                        block_x_start = self._get_bloco_x()
                         
                         logger.info(f"   🎯 Desenhando produto {idx+1}: pos=({block_x_start}, {block_y_start}), altura={block_height}px")
                         
@@ -1096,7 +1102,7 @@ class ImageProcessor:
                     
                     # Posicionar bloco
                     block_y_start = current_y_offset - block_height
-                    block_x_start = self._get_padding_x()
+                    block_x_start = self._get_bloco_x()
                     
                     # Desenhar bloco com cores padrão (preto ou vermelho se promoção)
                     self._draw_product_block(

@@ -145,7 +145,7 @@ def process_image_request():
     logger.info(f"   URL Imagem Original: {original_image_url}")
     logger.info(f"   URL Tema/Watermark: {theme_url if theme_url else 'NENHUM'}")
     if layout_config:
-        logger.info(f"   📐 Layout: blocoY={layout_config.get('blocoY')}, fontePreco={layout_config.get('fontePreco')}")
+        logger.info(f"   📐 Layout: blocoX={layout_config.get('blocoX')}, blocoY={layout_config.get('blocoY')}, fontePreco={layout_config.get('fontePreco')}")
     if theme_config:
         logger.info(f"   🎨 Tema: fonte={theme_config.get('fonte')}")
     logger.info(f"   💰 Desconto à vista: {desconto_a_vista}%")
