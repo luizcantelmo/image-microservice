@@ -853,9 +853,6 @@ class ImageProcessor:
             # Linhas 2 e 3: preços com fonte price (maior)
             bbox_price = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += 2 * (bbox_price[3] - bbox_price[1]) * line_height
-            
-            # Adicionar padding inferior para enquadrar última linha
-            height += 20
         else:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * line_height
