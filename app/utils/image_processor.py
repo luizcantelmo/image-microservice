@@ -859,14 +859,19 @@ class ImageProcessor:
             height += (bbox_price[3] - bbox_price[1]) * line_height
             
             # Linha 3 (última): preço à vista - apenas altura do texto, sem line_height
-            height += (bbox_price[3] - bbox_price[1])
+            price_text_height = bbox_price[3] - bbox_price[1]
+            height += price_text_height
         else:
             # Preço normal (última linha) - apenas altura do texto, sem line_height
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
-            height += (bbox[3] - bbox[1])
+            price_text_height = bbox[3] - bbox[1]
+            height += price_text_height
         
-        # Padding inferior (igual ao superior para simetria)
-        height += padding_y_interno
+        # Padding inferior + ajuste proporcional para compensar métricas da fonte
+        # As fontes têm espaço interno (descender) que aparece na borda inferior
+        # Adicionar ~15% da altura da fonte de preço para compensar
+        ajuste_metrica_fonte = price_text_height * 0.15
+        height += padding_y_interno + ajuste_metrica_fonte
         return int(round(height))
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
