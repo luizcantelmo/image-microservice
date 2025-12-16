@@ -866,10 +866,9 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, "X", self.fonts['price'])
             height += (bbox[3] - bbox[1]) * line_height
         
-        # Padding inferior (igual ao superior para simetria)
+        # Padding inferior (igual ao superior para simetria perfeita)
         height += padding_y_interno
-        
-        return int(height)
+        return int(round(height))
     
     def process_image(self, task_id, products_data, original_image_url, theme_url=None, generate_dual_version=False, layout_config=None, theme_config=None, desconto_a_vista=5):
         """
