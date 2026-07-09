@@ -516,12 +516,13 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
             max_width = max(max_width, bbox[2] - bbox[0])
         
-        # 4. Usei (numeração utilizada) - formatada
-        numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
-        usei_text = f"Usei: {numeracao_formatada}"
-        bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
-        max_width = max(max_width, bbox[2] - bbox[0])
-        
+        # 4. Usei (numeração utilizada) - formatada (pula se não informada)
+        if product['NumeracaoUtilizada'] and product['NumeracaoUtilizada'] != 'N/A':
+            numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
+            usei_text = f"Usei: {numeracao_formatada}"
+            bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+
         # 5. Preços
         if is_promotional and product['PrecoPromocional'] > 0:
             # DE R$XX,XX POR (fonte description)
@@ -694,11 +695,12 @@ class ImageProcessor:
             bbox = draw_centered_text(tam_text, text_cursor_y, self.fonts['description'])
             text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
         
-        # Texto: Usei (numeração utilizada)
-        usei_text = f"Usei: {numeracao_utilizada}"
-        bbox = draw_centered_text(usei_text, text_cursor_y, self.fonts['description'])
-        text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
-        
+        # Texto: Usei (numeração utilizada) - pula se não informada
+        if numeracao_utilizada_raw and numeracao_utilizada_raw != 'N/A':
+            usei_text = f"Usei: {numeracao_utilizada}"
+            bbox = draw_centered_text(usei_text, text_cursor_y, self.fonts['description'])
+            text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
+
         # Seção de Preço (centralizado)
         if preco_promocional > 0:
             # Linha 1: "DE" + "R$XX,XX" (riscado) + "POR" na mesma linha - fonte menor (description)
@@ -842,11 +844,12 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, tam_text, self.fonts['description'])
             height += (bbox[3] - bbox[1]) * line_height
         
-        # Usei (numeração utilizada) - formatada
-        numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
-        usei_text = f"Usei: {numeracao_formatada}"
-        bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
-        height += (bbox[3] - bbox[1]) * line_height
+        # Usei (numeração utilizada) - formatada (pula se não informada)
+        if product['NumeracaoUtilizada'] and product['NumeracaoUtilizada'] != 'N/A':
+            numeracao_formatada = self._format_numeracao_utilizada(product['NumeracaoUtilizada'])
+            usei_text = f"Usei: {numeracao_formatada}"
+            bbox = self._calculate_text_bbox(draw, usei_text, self.fonts['description'])
+            height += (bbox[3] - bbox[1]) * line_height
         
         # Preço (múltiplas linhas se promoção)
         if product['PrecoPromocional'] > 0:
