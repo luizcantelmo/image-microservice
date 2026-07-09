@@ -12,7 +12,18 @@ from app.utils.logger import get_logger
 from app.utils.task_manager import task_manager
 from app.utils.validators import validate_product_data
 
+# Registra o HEIC/HEIF no Pillow (fotos de iPhone) - sem isso, Image.open()
+# falha nesse formato. Precisa acontecer uma vez, antes de qualquer Image.open().
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 logger = get_logger(__name__)
+
+# Largura máxima da imagem original antes de processar - mesma calibração que
+# o photo-monitor já usava no upload (900px). Fotos maiores (ex: HEIC de
+# iPhone, ~30MB) são encolhidas aqui, evitando processar arquivo gigante e
+# mantendo a mesma proporção de fonte/layout já configurada.
+MAX_ORIGINAL_WIDTH = 900
 
 class ImageProcessor:
     """Processador de imagens com suporte a múltiplos produtos"""
@@ -207,11 +218,17 @@ class ImageProcessor:
         try:
             response = requests.get(url, stream=True, timeout=config.REQUEST_TIMEOUT)
             response.raise_for_status()
-            
+
             image_bytes = BytesIO(response.content)
             image = Image.open(image_bytes).convert("RGBA")
-            
+
             logger.info(f"Imagem baixada com sucesso: {image.size}")
+
+            if image.width > MAX_ORIGINAL_WIDTH:
+                nova_altura = round(image.height * (MAX_ORIGINAL_WIDTH / image.width))
+                logger.info(f"Redimensionando de {image.size} para ({MAX_ORIGINAL_WIDTH}, {nova_altura})")
+                image = image.resize((MAX_ORIGINAL_WIDTH, nova_altura), Image.Resampling.LANCZOS)
+
             return image
         except requests.exceptions.RequestException as e:
             logger.error(f"Erro ao baixar imagem {url}: {e}")
