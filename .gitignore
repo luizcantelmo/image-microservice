@@ -28,6 +28,11 @@ logs/
 temp_processed_images/
 *.tmp
 *.temp
+tasks_db.json
+
+# Fontes licenciadas (ex: Arial copiada do Windows p/ teste local) - não redistribuir
+fonts/*.ttf
+fonts/*.otf
 
 # OS
 .DS_Store
