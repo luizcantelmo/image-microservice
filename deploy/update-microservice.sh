@@ -20,6 +20,7 @@ atualizar() {
   echo "=== Atualizando $servico ($pasta) ==="
   cd "$pasta"
   git pull
+  ./venv/bin/pip install -r requirements.txt
   systemctl restart "$servico"
   sleep 2
   systemctl status "$servico" --no-pager | head -5
