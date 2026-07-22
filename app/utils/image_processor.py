@@ -19,11 +19,13 @@ register_heif_opener()
 
 logger = get_logger(__name__)
 
-# Largura máxima da imagem original antes de processar - mesma calibração que
-# o photo-monitor já usava no upload (900px). Fotos maiores (ex: HEIC de
-# iPhone, ~30MB) são encolhidas aqui, evitando processar arquivo gigante e
-# mantendo a mesma proporção de fonte/layout já configurada.
-MAX_ORIGINAL_WIDTH = 900
+# Largura máxima da imagem original antes de processar - 1080px é a resolução recomendada
+# pelo Instagram/Facebook pra Stories (formato 9:16), deixando as imagens já prontas pra
+# esse uso. Fotos maiores (ex: HEIC de iPhone, ~30MB) são encolhidas aqui, evitando
+# processar arquivo gigante. O layout/fonte da legenda (tabela `configuracoes` no Supabase,
+# chaves layout_3_4/layout_9_16) foi recalibrado em conjunto pra essa referência — se esse
+# valor mudar de novo, os tamanhos de fonte/padding lá também precisam escalar junto.
+MAX_ORIGINAL_WIDTH = 1080
 
 class ImageProcessor:
     """Processador de imagens com suporte a múltiplos produtos"""
