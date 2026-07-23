@@ -129,7 +129,52 @@ class ImageProcessor:
         if self.layout_config:
             return self.layout_config.get('linhaAltura', config.LINE_HEIGHT_MULTIPLIER)
         return config.LINE_HEIGHT_MULTIPLIER
-    
+
+    def _padroniza_largura_bloco(self):
+        """Opt-in por chamador (não muda comportamento de quem não manda essa flag no
+        layout_config, ex: photo-monitor) — padroniza a largura da caixa de informações
+        entre fotos diferentes, que hoje varia conforme o texto de cada produto."""
+        if self.layout_config:
+            return bool(self.layout_config.get('padronizarLarguraBloco', False))
+        return False
+
+    def _calculate_standard_block_width(self, draw):
+        """
+        Largura "padrão" do bloco, calculada com textos de referência no PIOR CASO
+        (não com o texto real de um produto) — usada como largura MÍNIMA quando
+        padronizarLarguraBloco está ligado, pra a caixa ficar do mesmo tamanho na
+        maioria das fotos. Se o texto real de algum produto precisar de mais espaço
+        que isso (ex: muitos tamanhos disponíveis), a caixa cresce além do padrão pra
+        não cortar texto — nunca encolhe abaixo do necessário.
+        """
+        max_width = 0
+
+        # Descrição: já é limitada em largura pela linha "Tam: ESGOTADO" (_split_description),
+        # então essa referência já cobre o pior caso da descrição também.
+        referencias = [
+            'Tam: ESGOTADO',
+            'Ref 999999',
+            'Tam: 36/38/40/42/44/46/48/50/52',
+            'Usei: 999999',
+        ]
+        for texto in referencias:
+            bbox = self._calculate_text_bbox(draw, texto, self.fonts['description'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+
+        # Preço promocional (3 linhas — a mais larga costuma ser "DE ... POR", fonte description)
+        bbox = self._calculate_text_bbox(draw, 'DE R$999,90 POR', self.fonts['description'])
+        max_width = max(max_width, bbox[2] - bbox[0])
+        for texto in ['R$999,90 no cartão', 'R$999,90 à vista']:
+            bbox = self._calculate_text_bbox(draw, texto, self.fonts['price'])
+            max_width = max(max_width, bbox[2] - bbox[0])
+
+        # Preço normal (sem promoção)
+        bbox = self._calculate_text_bbox(draw, 'R$999,90', self.fonts['price'])
+        max_width = max(max_width, bbox[2] - bbox[0])
+
+        padding_x_interno = self._get_padding_x()
+        return int(max_width + (2 * padding_x_interno))
+
     def _parse_rgba(self, rgba_str):
         """Converte string rgba(r, g, b, a) para tupla (r, g, b, a)"""
         if not rgba_str or not isinstance(rgba_str, str):
@@ -591,7 +636,13 @@ class ImageProcessor:
         padding_x_interno = self._get_padding_x()
         block_width = max_width + (2 * padding_x_interno)
         logger.info(f"   📐 Largura bloco: texto={max_width}px + (2 * paddingX={padding_x_interno}) = {block_width}px")
-        
+
+        if self._padroniza_largura_bloco():
+            largura_padrao = self._calculate_standard_block_width(draw)
+            if largura_padrao > block_width:
+                logger.info(f"   📐 Largura padronizada: {block_width}px -> {largura_padrao}px")
+            block_width = max(block_width, largura_padrao)
+
         return int(block_width)
     
     def _calculate_dynamic_block_width(self, draw, product, is_promotional=False):
