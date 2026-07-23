@@ -150,12 +150,15 @@ class ImageProcessor:
         max_width = 0
 
         # Descrição: já é limitada em largura pela linha "Tam: ESGOTADO" (_split_description),
-        # então essa referência já cobre o pior caso da descrição também.
+        # então essa referência já cobre o pior caso da descrição também. Deixado de fora de
+        # propósito um "Tam: 36/38/.../52" com muitos tamanhos — a grande maioria das peças
+        # mostra só 1 ou 2 tamanhos, e usar uma lista longa como referência de TODA foto deixava
+        # a largura padrão maior que o necessário quase sempre (muito espaço vazio sobrando).
+        # Se uma peça específica realmente tiver muitos tamanhos, a caixa cresce além do padrão
+        # só pra ela — é a exceção, não deveria ser o parâmetro que define o padrão de todo mundo.
         referencias = [
             'Tam: ESGOTADO',
-            'Ref 999999',
-            'Tam: 36/38/40/42/44/46/48/50/52',
-            'Usei: 999999',
+            'Ref 9999',
         ]
         for texto in referencias:
             bbox = self._calculate_text_bbox(draw, texto, self.fonts['description'])
