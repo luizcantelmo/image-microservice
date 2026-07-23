@@ -61,37 +61,45 @@ class ImageProcessor:
             desc_size = layout_config.get('fonteDescricao', config.FONT_DESCRIPTION_SIZE)
             ref_size = layout_config.get('fonteReferencia', config.FONT_REF_SIZE_PROMO)
             price_size = layout_config.get('fontePreco', config.FONT_PRICE_SIZE)
+            # Se não configurado (config antigo, sem esse campo ainda), cai pro mesmo
+            # tamanho do preço normal — sem esse fallback, fotos processadas antes desse
+            # campo existir mudariam de tamanho sem ninguém ter pedido.
+            price_promo_size = layout_config.get('fontePrecoPromocional', price_size)
             esgotado_size = layout_config.get('fonteEsgotado', config.FONT_ESGOTADO_SIZE)
         else:
             desc_size = config.FONT_DESCRIPTION_SIZE
             ref_size = config.FONT_REF_SIZE_PROMO
             price_size = config.FONT_PRICE_SIZE
+            price_promo_size = config.FONT_PRICE_SIZE
             esgotado_size = config.FONT_ESGOTADO_SIZE
-        
+
         # Determinar fonte a usar
         font_name = theme_config.get('fonte', 'arial') if theme_config else 'arial'
         font_path = self._get_font_path(font_name)
-        
+
         try:
             if os.path.exists(font_path):
                 fonts['description'] = ImageFont.truetype(font_path, desc_size)
                 fonts['ref_promo'] = ImageFont.truetype(font_path, ref_size)
                 fonts['price'] = ImageFont.truetype(font_path, price_size)
+                fonts['price_promo'] = ImageFont.truetype(font_path, price_promo_size)
                 fonts['esgotado'] = ImageFont.truetype(font_path, esgotado_size)
-                logger.info(f"Fontes carregadas: {font_path} (desc={desc_size}, price={price_size})")
+                logger.info(f"Fontes carregadas: {font_path} (desc={desc_size}, price={price_size}, price_promo={price_promo_size})")
             else:
                 logger.warning(f"Fonte não encontrada em {font_path}. Usando fonte padrão.")
                 fonts['description'] = ImageFont.load_default()
                 fonts['ref_promo'] = ImageFont.load_default()
                 fonts['price'] = ImageFont.load_default()
+                fonts['price_promo'] = fonts['price']
                 fonts['esgotado'] = ImageFont.load_default()
         except Exception as e:
             logger.error(f"Erro ao carregar fontes: {e}. Usando fonte padrão.")
             fonts['description'] = ImageFont.load_default()
             fonts['ref_promo'] = ImageFont.load_default()
             fonts['price'] = ImageFont.load_default()
+            fonts['price_promo'] = fonts['price']
             fonts['esgotado'] = ImageFont.load_default()
-        
+
         return fonts
     
     def _get_padding_x(self):
@@ -168,7 +176,7 @@ class ImageProcessor:
         bbox = self._calculate_text_bbox(draw, 'DE R$999,90 POR', self.fonts['description'])
         max_width = max(max_width, bbox[2] - bbox[0])
         for texto in ['R$999,90 no cartão', 'R$999,90 à vista']:
-            bbox = self._calculate_text_bbox(draw, texto, self.fonts['price'])
+            bbox = self._calculate_text_bbox(draw, texto, self.fonts['price_promo'])
             max_width = max(max_width, bbox[2] - bbox[0])
 
         # Preço normal (sem promoção)
@@ -233,6 +241,7 @@ class ImageProcessor:
                 fonts['description'] = ImageFont.truetype(config.DEFAULT_FONT_PATH, config.FONT_DESCRIPTION_SIZE)
                 fonts['ref_promo'] = ImageFont.truetype(config.DEFAULT_FONT_PATH, config.FONT_REF_SIZE_PROMO)
                 fonts['price'] = ImageFont.truetype(config.DEFAULT_FONT_PATH, config.FONT_PRICE_SIZE)
+                fonts['price_promo'] = fonts['price']
                 fonts['esgotado'] = ImageFont.truetype(config.DEFAULT_FONT_PATH, config.FONT_ESGOTADO_SIZE)
                 logger.info(f"Fontes carregadas de: {config.DEFAULT_FONT_PATH}")
             else:
@@ -240,16 +249,18 @@ class ImageProcessor:
                 fonts['description'] = ImageFont.load_default()
                 fonts['ref_promo'] = ImageFont.load_default()
                 fonts['price'] = ImageFont.load_default()
+                fonts['price_promo'] = fonts['price']
                 fonts['esgotado'] = ImageFont.load_default()
         except Exception as e:
             logger.error(f"Erro ao carregar fontes: {e}. Usando fonte padrão.")
             fonts['description'] = ImageFont.load_default()
             fonts['ref_promo'] = ImageFont.load_default()
             fonts['price'] = ImageFont.load_default()
+            fonts['price_promo'] = fonts['price']
             fonts['esgotado'] = ImageFont.load_default()
-        
+
         return fonts
-    
+
     def _download_image(self, url):
         """
         Download de imagem de uma URL
@@ -597,15 +608,15 @@ class ImageProcessor:
             bbox = self._calculate_text_bbox(draw, de_por_text, self.fonts['description'])
             max_width = max(max_width, bbox[2] - bbox[0])
             
-            # R$XX,XX no cartão (fonte price)
+            # R$XX,XX no cartão (fonte price_promo)
             promo_text = f"{self._format_price_text(product['PrecoPromocional'])} no cartão"
-            bbox = self._calculate_text_bbox(draw, promo_text, self.fonts['price'])
+            bbox = self._calculate_text_bbox(draw, promo_text, self.fonts['price_promo'])
             max_width = max(max_width, bbox[2] - bbox[0])
-            
-            # R$XX,XX à vista (fonte price)
+
+            # R$XX,XX à vista (fonte price_promo)
             if product['PrecoPromocionalAVista'] > 0:
                 vista_text = f"{self._format_price_text(product['PrecoPromocionalAVista'])} à vista"
-                bbox = self._calculate_text_bbox(draw, vista_text, self.fonts['price'])
+                bbox = self._calculate_text_bbox(draw, vista_text, self.fonts['price_promo'])
                 max_width = max(max_width, bbox[2] - bbox[0])
         else:
             # Preço normal
@@ -817,13 +828,13 @@ class ImageProcessor:
             
             # Linha 2: Preço promocional (no cartão)
             promo_text = f"{self._format_price_text(preco_promocional)} no cartão"
-            bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price'])
+            bbox = draw_centered_text(promo_text, text_cursor_y, self.fonts['price_promo'])
             text_cursor_y += (bbox[3] - bbox[1]) * self._get_line_height()
-            
+
             # Linha 3: Preço à vista (última linha - não incrementa cursor)
             if preco_promocional_a_vista > 0:
                 vista_text = f"{self._format_price_text(preco_promocional_a_vista)} à vista"
-                draw_centered_text(vista_text, text_cursor_y, self.fonts['price'])
+                draw_centered_text(vista_text, text_cursor_y, self.fonts['price_promo'])
         else:
             # Preço normal (última linha - não incrementa cursor)
             price_text = self._format_price_text(preco)
@@ -930,24 +941,27 @@ class ImageProcessor:
             bbox_desc = self._calculate_text_bbox(draw, "DE R$99,90 POR", self.fonts['description'])
             height += (bbox_desc[3] - bbox_desc[1]) * line_height
             
-            # Linha 2: preço no cartão (com fonte price)
-            bbox_price = self._calculate_text_bbox(draw, "R$69,90 no cartão", self.fonts['price'])
+            # Linha 2: preço no cartão (com fonte price_promo)
+            bbox_price = self._calculate_text_bbox(draw, "R$69,90 no cartão", self.fonts['price_promo'])
             height += (bbox_price[3] - bbox_price[1]) * line_height
-            
-            # Linha 3 (última): preço à vista (com fonte price)
-            bbox_vista = self._calculate_text_bbox(draw, "R$64,31 à vista", self.fonts['price'])
+
+            # Linha 3 (última): preço à vista (com fonte price_promo)
+            bbox_vista = self._calculate_text_bbox(draw, "R$64,31 à vista", self.fonts['price_promo'])
             price_text_height = bbox_vista[3] - bbox_vista[1]
             height += price_text_height
+            ultima_linha_fonte = self.fonts['price_promo']
         else:
             # Preço normal (última linha) - apenas altura do texto, sem line_height
             bbox = self._calculate_text_bbox(draw, "R$239,90", self.fonts['price'])
             price_text_height = bbox[3] - bbox[1]
             height += price_text_height
-        
-        # Padding inferior + ajuste baseado nas métricas reais da fonte
+            ultima_linha_fonte = self.fonts['price']
+
+        # Padding inferior + ajuste baseado nas métricas reais da fonte da ÚLTIMA linha
+        # (price_promo pode ter tamanho diferente de price agora)
         # getmetrics() retorna (ascent, descent) - descent é o espaço abaixo da baseline
         try:
-            ascent, descent = self.fonts['price'].getmetrics()
+            ascent, descent = ultima_linha_fonte.getmetrics()
             # O descent já representa o espaço real abaixo da baseline
             ajuste_metrica_fonte = descent
         except:
