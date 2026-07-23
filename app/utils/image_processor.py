@@ -1229,5 +1229,42 @@ class ImageProcessor:
             task_manager.update_task_status(task_id, "FAILED", error_message=str(e))
             return None
 
+    def calculate_legend_size(self, products, layout_config=None):
+        """
+        Calcula a largura/altura EXATA que a legenda vai ocupar pra uma lista de
+        produtos, sem baixar nem renderizar imagem nenhuma — só mede texto com as
+        mesmas fontes/métricas do PIL usadas no render de verdade. Usado pelo editor
+        de imagem do photo-sync-lite pra mostrar um guia real (pixel-a-pixel igual
+        ao resultado final) em vez de aproximar no navegador, que não tem acesso à
+        mesma fonte/engine de medição.
+
+        Args:
+            products (list): produtos já normalizados (validate_product_data)
+            layout_config (dict): mesmo layout_config de /api/v1/process-image
+                (inclui padronizarLarguraBloco, se o chamador quiser respeitar isso)
+
+        Returns:
+            tuple: (width, height, tem_promocao)
+        """
+        self.layout_config = layout_config
+        if layout_config:
+            self.fonts = self._load_fonts_with_config(layout_config, None)
+
+        # Imagem/draw "fake" só pra medir texto (bbox) — nunca é salva nem exibida
+        dummy_img = Image.new('RGB', (10, 10))
+        draw = ImageDraw.Draw(dummy_img)
+
+        width = self._calculate_uniform_block_width(draw, products, check_promotional=True)
+
+        total_height = 0
+        for idx, product in enumerate(products):
+            total_height += self._calculate_block_height(draw, product)
+            if idx > 0:
+                total_height += self._get_block_spacing()
+
+        tem_promocao = any(p['PrecoPromocional'] > 0 for p in products)
+
+        return int(width), int(total_height), tem_promocao
+
 # Instância global
 image_processor = ImageProcessor()

@@ -177,6 +177,44 @@ def process_image_request():
         "final_image_url": f"{config.BASE_IMAGE_URL}/{task_id}.jpg"
     }), 202
 
+@app.route('/api/v1/legend-size', methods=['POST'])
+@error_handler
+def legend_size_request():
+    """
+    Calcula o tamanho EXATO (largura/altura em pixels) que a legenda vai ocupar pra
+    uma lista de produtos, sem baixar nem renderizar imagem nenhuma — só mede texto
+    com as mesmas fontes/métricas do PIL usadas no render de verdade. Síncrono
+    (não usa a fila de tarefas) porque é rápido, só medição de texto.
+
+    Body:
+    {
+        "products": [ ...mesmo formato de /api/v1/process-image... ],
+        "layout_config": {...} (opcional, mesmo formato de /api/v1/process-image)
+    }
+
+    Response (200):
+    { "width": 388, "height": 210, "temPromocao": false }
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Payload JSON é necessário"}), 400
+
+    products = data.get('products')
+    if not products or not isinstance(products, list):
+        return jsonify({"error": "Parâmetro 'products' é obrigatório e deve ser uma lista não vazia"}), 400
+    if len(products) > config.MAX_PRODUCTS_PER_REQUEST:
+        return jsonify({"error": f"Máximo de {config.MAX_PRODUCTS_PER_REQUEST} produtos por requisição"}), 400
+
+    try:
+        normalized_products = [validate_product_data(p) for p in products]
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    layout_config = data.get('layout_config')
+    width, height, tem_promocao = image_processor.calculate_legend_size(normalized_products, layout_config)
+
+    return jsonify({"width": width, "height": height, "temPromocao": tem_promocao}), 200
+
 @app.route('/api/v1/status/<task_id>', methods=['GET'])
 @error_handler
 def get_status(task_id):
